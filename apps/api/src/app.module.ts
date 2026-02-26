@@ -4,6 +4,7 @@ import { AuthModule } from './auth/auth.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { TimeEntriesModule } from './time-entries/time-entries.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { RecurringModule } from './recurring/recurring.module';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
     AuthModule,
     TimeEntriesModule,
     DashboardModule,
+    RecurringModule,
   ],
   controllers: [],
   providers: [],

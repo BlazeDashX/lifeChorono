@@ -8,19 +8,44 @@ import { format } from 'date-fns';
 export default function QuickAddModal({ 
   isOpen, 
   onClose, 
-  selectedDate 
+  selectedDate,
+  prefillData
 }: { 
   isOpen: boolean; 
   onClose: () => void;
   selectedDate: Date;
+  prefillData?: any;
 }) {
   const queryClient = useQueryClient();
   const dateStr = format(selectedDate, 'yyyy-MM-dd');
   
-  const [title, setTitle] = useState('');
-  const [category, setCategory] = useState<'productive' | 'leisure' | 'restoration' | 'neutral' | null>(null);
-  const [startTime, setStartTime] = useState('09:00');
-  const [endTime, setEndTime] = useState('10:00');
+  const [title, setTitle] = useState(prefillData?.title || '');
+  const [category, setCategory] = useState<'productive' | 'leisure' | 'restoration' | 'neutral' | null>(prefillData?.category || null);
+
+  // Calculate default times based on recurring task
+  const getDefaultTimes = () => {
+    if (prefillData?.defaultDuration) {
+      // For recurring tasks, set reasonable default times for today
+      const now = new Date();
+      const start = new Date(now);
+      start.setHours(9, 0, 0, 0); // Default to 9 AM
+      const end = new Date(start);
+      end.setMinutes(start.getMinutes() + prefillData.defaultDuration);
+      
+      const startMinutes = start.getHours() * 60 + start.getMinutes();
+      const endMinutes = end.getHours() * 60 + end.getMinutes();
+      
+      return {
+        startTime: `${String(Math.floor(startMinutes / 60)).padStart(2, '0')}:${String(startMinutes % 60).padStart(2, '0')}`,
+        endTime: `${String(Math.floor(endMinutes / 60)).padStart(2, '0')}:${String(endMinutes % 60).padStart(2, '0')}`,
+      };
+    }
+    return { startTime: '09:00', endTime: '10:00' };
+  };
+  
+  const { startTime, endTime } = getDefaultTimes();
+  const [timeStart, setTimeStart] = useState(startTime);
+  const [timeEnd, setTimeEnd] = useState(endTime);
 
   const mutation = useMutation({
     mutationFn: createEntry,
@@ -83,14 +108,14 @@ export default function QuickAddModal({
         <div className="flex gap-4">
           <input 
             type="time" 
-            value={startTime} 
-            onChange={(e) => setStartTime(e.target.value)}
+            value={timeStart} 
+            onChange={(e) => setTimeStart(e.target.value)}
             className="flex-1 bg-slate-900 border border-slate-800 p-3 rounded-lg text-white"
           />
           <input 
             type="time" 
-            value={endTime} 
-            onChange={(e) => setEndTime(e.target.value)}
+            value={timeEnd} 
+            onChange={(e) => setTimeEnd(e.target.value)}
             className="flex-1 bg-slate-900 border border-slate-800 p-3 rounded-lg text-white"
           />
         </div>
@@ -100,12 +125,15 @@ export default function QuickAddModal({
           <button 
             disabled={!title || !category}
             onClick={() => {
-              mutation.mutate({
+              const entryData = {
                 title,
                 category,
-                startTime: `${dateStr}T${startTime}:00Z`,
-                endTime: `${dateStr}T${endTime}:00Z`,
-              });
+                startTime: `${dateStr}T${timeStart}:00Z`,
+                endTime: `${dateStr}T${timeEnd}:00Z`,
+                // Link to recurring task if this came from a suggestion
+                ...(prefillData?.id && { recurringTaskId: prefillData.id })
+              };
+              mutation.mutate(entryData);
             }} 
             className="flex-1 p-3 rounded-lg bg-brand hover:bg-brand-light text-white font-medium disabled:opacity-50"
           >

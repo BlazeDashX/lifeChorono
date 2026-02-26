@@ -5,17 +5,24 @@ import { useQuery } from '@tanstack/react-query';
 import { format, addDays, subDays } from 'date-fns';
 import { fetchDayEntries } from '@/lib/api-entries';
 import { Plus } from 'lucide-react';
-import QuickAddModal from '@/components/QuickAddModal';
+import QuickAddModal from '@/components/QuickAddModal'; // Adjust import path if needed
+import Suggestions from '@/components/log/Suggestions'; // Adjust import path if needed
 
 export default function LogPage() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const dateStr = format(selectedDate, 'yyyy-MM-dd');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [prefillData, setPrefillData] = useState<any>(null);
 
   const { data: entries = [], isLoading } = useQuery({
     queryKey: ['entries', dateStr],
     queryFn: () => fetchDayEntries(dateStr),
   });
+
+  const handleSuggestionClick = (task: any) => {
+    setPrefillData(task);
+    setIsModalOpen(true);
+  };
 
   return (
     <div className="min-h-screen pb-24 max-w-2xl mx-auto">
@@ -27,6 +34,9 @@ export default function LogPage() {
         </h1>
         <button onClick={() => setSelectedDate(addDays(selectedDate, 1))} className="p-2 text-neutral">→</button>
       </header>
+
+      {/* Suggestions Slider Component from Step 08 */}
+      <Suggestions dateStr={dateStr} onSelect={handleSuggestionClick} />
 
       {/* Timeline (1 minute = 1 pixel for easy math. 24 hours = 1440px) */}
       <div className="relative h-[1440px] mt-4 ml-16 mr-4 border-l border-slate-800">
@@ -79,8 +89,12 @@ export default function LogPage() {
 
       <QuickAddModal 
         isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
+        onClose={() => {
+          setIsModalOpen(false);
+          setPrefillData(null);
+        }} 
         selectedDate={selectedDate}
+        prefillData={prefillData}
       />
     </div>
   );
