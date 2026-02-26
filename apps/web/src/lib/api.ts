@@ -1,7 +1,8 @@
 import axios from 'axios';
 import { useAuthStore } from '@/stores/auth';
+import { API_URL } from '../../env-config';
 
-export const api = axios.create({ baseURL: process.env.NEXT_PUBLIC_API_URL });
+export const api = axios.create({ baseURL: API_URL });
 
 api.interceptors.request.use((config) => {
   const token = useAuthStore.getState().accessToken;

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import axios from 'axios';
+import { API_URL } from '../../env-config';
 
 interface AuthState {
   accessToken: string | null;
@@ -15,7 +16,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   setAuth: (accessToken, user) => set({ accessToken, user }),
   refresh: async () => {
     try {
-      const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/auth/refresh`, {}, { withCredentials: true });
+      const res = await axios.post(`${API_URL}/auth/refresh`, {}, { withCredentials: true });
       set({ accessToken: res.data.accessToken });
     } catch (error) {
       set({ accessToken: null, user: null });
