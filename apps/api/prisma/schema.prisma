@@ -1,0 +1,147 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id              String    @id @default(uuid())
+  email           String    @unique
+  passwordHash    String
+  name            String
+  avatarUrl       String?
+  timezone        String    @default("UTC")
+  weeklyGoals     Json      @default("{}")
+  isSuperAdmin    Boolean   @default(false)
+  isBanned        Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  timeEntries     TimeEntry[]
+  moodLogs        MoodLog[]
+  recurringTasks  RecurringTask[]
+  aiInsights      AiInsight[]
+  weeklySnapshots WeeklySnapshot[]
+}
+
+model TimeEntry {
+  id              String         @id @default(uuid())
+  userId          String
+  title           String
+  category        Category
+  subCategory     String?
+  startTime       DateTime
+  endTime         DateTime
+  durationMinutes Int
+  note            String?
+  date            DateTime       @db.Date
+  isRecurring     Boolean        @default(false)
+  recurringTaskId String?
+  createdAt       DateTime       @default(now())
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recurringTask   RecurringTask? @relation(fields: [recurringTaskId], references: [id])
+}
+
+model MoodLog {
+  id        String   @id @default(uuid())
+  userId    String
+  date      DateTime @db.Date
+  score     Int
+  note      String?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+}
+
+model RecurringTask {
+  id              String     @id @default(uuid())
+  userId          String
+  title           String
+  category        Category
+  defaultDuration Int
+  daysOfWeek      Int[]
+  isActive        Boolean    @default(true)
+  createdAt       DateTime   @default(now())
+  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  timeEntries     TimeEntry[]
+}
+
+model AiInsight {
+  id              String   @id @default(uuid())
+  userId          String
+  weekStart       DateTime @db.Date
+  weekEnd         DateTime @db.Date
+  summary         String
+  balanceScore    Int
+  recommendations Json
+  generatedAt     DateTime @default(now())
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model WeeklySnapshot {
+  id               String   @id @default(uuid())
+  userId           String
+  weekStart        DateTime @db.Date
+  productiveHrs    Float    @default(0)
+  leisureHrs       Float    @default(0)
+  restorationHrs   Float    @default(0)
+  neutralHrs       Float    @default(0)
+  totalLoggedHrs   Float    @default(0)
+  avgMoodScore     Float?
+  consistencyScore Float    @default(0)
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, weekStart])
+}
+
+model AdminContent {
+  id          String      @id @default(uuid())
+  contentType ContentType
+  key         String      @unique
+  value       String
+  isActive    Boolean     @default(true)
+  updatedAt   DateTime    @updatedAt
+}
+
+model AiPromptVersion {
+  id           String   @id @default(uuid())
+  promptName   String
+  systemPrompt String
+  toneLabel    String
+  isActive     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+}
+
+model NotificationBroadcast {
+  id             String    @id @default(uuid())
+  title          String
+  body           String
+  audience       Audience
+  deepLink       String?
+  scheduledAt    DateTime?
+  sentAt         DateTime?
+  recipientCount Int       @default(0)
+}
+
+enum Category {
+  productive
+  leisure
+  restoration
+  neutral
+}
+
+enum ContentType {
+  tip
+  quote
+  onboarding
+  empty_state
+  category_desc
+}
+
+enum Audience {
+  all
+  active
+  streaking
+  dormant
+}
