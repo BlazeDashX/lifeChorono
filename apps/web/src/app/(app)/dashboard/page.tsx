@@ -4,6 +4,8 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { startOfWeek, format } from 'date-fns';
 import Donut168 from '@/components/dashboard/Donut168';
+import GoalProgress from '@/components/dashboard/GoalProgress';
+import TodaySummary from '@/components/dashboard/TodaySummary';
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import AppLayout from '@/components/layout/AppLayout';
 import AiInsights from '@/components/dashboard/AiInsights';
@@ -43,18 +45,18 @@ export default function DashboardPage() {
   const streakStyle = {
     green: 'bg-green-500/20 text-green-500',
     amber: 'bg-amber-500/20 text-amber-500',
-    none: 'bg-slate-800 text-neutral',
+    none:  'bg-slate-800 text-neutral',
   }[data.streakStatus as 'green' | 'amber' | 'none'] ?? 'bg-slate-800 text-neutral';
 
   const streakTooltip = {
     green: 'Logged today ✓',
     amber: 'Not logged today yet',
-    none: 'Streak reset',
+    none:  'No streak',
   }[data.streakStatus as string] ?? '';
 
   return (
     <AppLayout>
-      <div className="max-w-3xl mx-auto p-4 pb-24 space-y-8">
+      <div className="max-w-3xl mx-auto p-4 pb-24 space-y-6">
 
         {/* Header & Streak */}
         <div className="flex justify-between items-center bg-surface p-4 rounded-xl border border-slate-800">
@@ -62,7 +64,10 @@ export default function DashboardPage() {
             <h1 className="text-xl font-bold text-white">This Week</h1>
             <p className="text-sm text-neutral">
               {format(weekStart, 'MMM d')} –{' '}
-              {format(new Date(weekStart.getTime() + 6 * 24 * 60 * 60 * 1000), 'MMM d, yyyy')}
+              {format(
+                new Date(weekStart.getTime() + 6 * 24 * 60 * 60 * 1000),
+                'MMM d, yyyy'
+              )}
             </p>
           </div>
           <div className="flex flex-col items-end gap-0.5">
@@ -75,10 +80,16 @@ export default function DashboardPage() {
           </div>
         </div>
 
+        {/* Today's Summary */}
+        <TodaySummary todaySummary={data.todaySummary} />
+
         {/* 168 Hour Donut */}
         <div className="bg-surface p-6 rounded-xl border border-slate-800 flex flex-col items-center">
           <Donut168 data={data} />
         </div>
+
+        {/* Weekly Goal Progress */}
+        <GoalProgress goalProgress={data.goalProgress} />
 
         {/* Daily Breakdown */}
         <div className="bg-surface p-6 rounded-xl border border-slate-800 h-72">
@@ -106,10 +117,10 @@ export default function DashboardPage() {
                   borderRadius: '8px',
                 }}
               />
-              <Bar dataKey="productive" stackId="a" fill="#10B981" radius={[0, 0, 4, 4]} />
-              <Bar dataKey="leisure" stackId="a" fill="#F59E0B" />
+              <Bar dataKey="productive"  stackId="a" fill="#10B981" radius={[0, 0, 4, 4]} />
+              <Bar dataKey="leisure"     stackId="a" fill="#F59E0B" />
               <Bar dataKey="restoration" stackId="a" fill="#06B6D4" />
-              <Bar dataKey="neutral" stackId="a" fill="#64748B" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="neutral"     stackId="a" fill="#64748B" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
