@@ -4,7 +4,9 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import AppLayout from '@/components/layout/AppLayout';
+import TopBar from '@/components/layout/TopBar';
 import { Save, Info } from 'lucide-react';
+import { useToast } from '@/lib/toast';
 
 interface WeeklyGoals {
   productive: number;
@@ -21,16 +23,18 @@ interface User {
 }
 
 const CATEGORY_CONFIG = {
-  productive: { label: 'Productive', color: '#10B981', bg: 'bg-emerald-500' },
-  leisure:    { label: 'Leisure',    color: '#F59E0B', bg: 'bg-amber-500'   },
-  restoration:{ label: 'Restoration',color: '#06B6D4', bg: 'bg-cyan-500'    },
-  neutral:    { label: 'Neutral',    color: '#64748B', bg: 'bg-slate-500'   },
+  productive:  { label: 'Productive',  color: '#10B981' },
+  leisure:     { label: 'Leisure',     color: '#F59E0B' },
+  restoration: { label: 'Restoration', color: '#06B6D4' },
+  neutral:     { label: 'Neutral',     color: '#64748B' },
 } as const;
 
 const TOTAL_HOURS = 168;
+const CARD_STYLE = { backgroundColor: '#0F0F1A', border: '1px solid #1A1A2E' };
 
 export default function SettingsPage() {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   const { data: user, isLoading } = useQuery<User>({
     queryKey: ['me'],
@@ -38,16 +42,10 @@ export default function SettingsPage() {
   });
 
   const [goals, setGoals] = useState<WeeklyGoals>({
-    productive: 40,
-    leisure: 28,
-    restoration: 56,
-    neutral: 20,
+    productive: 40, leisure: 28, restoration: 56, neutral: 20,
   });
-
-  const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
 
-  // Populate from server once loaded
   useEffect(() => {
     if (user?.weeklyGoals && Object.keys(user.weeklyGoals).length) {
       setGoals(user.weeklyGoals as WeeklyGoals);
@@ -63,105 +61,111 @@ export default function SettingsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['me'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-      setSaved(true);
+      toast('Goals saved successfully');
       setError('');
-      setTimeout(() => setSaved(false), 3000);
     },
     onError: (err: any) => {
-      setError(err?.response?.data?.message || 'Failed to save goals');
+      const msg = err?.response?.data?.message || 'Failed to save goals';
+      setError(msg);
+      toast(msg, 'error');
     },
   });
 
   const handleChange = (category: keyof WeeklyGoals, value: string) => {
-    const num = Math.max(0, parseInt(value) || 0);
-    setGoals(prev => ({ ...prev, [category]: num }));
+    setGoals(prev => ({ ...prev, [category]: Math.max(0, parseInt(value) || 0) }));
     setError('');
-    setSaved(false);
   };
 
   if (isLoading) {
     return (
       <AppLayout>
-        <div className="p-8 text-neutral animate-pulse">Loading settings...</div>
+        <TopBar />
+        <div className="p-8 animate-pulse" style={{ color: '#9896B8' }}>Loading...</div>
       </AppLayout>
     );
   }
 
   return (
     <AppLayout>
-      <div className="max-w-xl mx-auto p-4 pb-24 space-y-6">
+      <TopBar />
 
-        {/* Header */}
-        <div className="bg-surface p-6 rounded-xl border border-slate-800">
-          <h1 className="text-2xl font-bold text-white">Settings</h1>
-          <p className="text-sm text-neutral mt-1">Manage your account and weekly goals</p>
-        </div>
+      <div className="max-w-xl mx-auto p-4 pb-28 md:pb-8 space-y-5">
 
         {/* Profile */}
-        <div className="bg-surface p-6 rounded-xl border border-slate-800 space-y-3">
-          <h2 className="text-lg font-bold text-white">Profile</h2>
+        <div className="p-6 rounded-xl space-y-4" style={CARD_STYLE}>
+          <h2 className="text-base font-bold" style={{ color: '#F1F0FF' }}>Profile</h2>
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-brand/20 flex items-center justify-center text-brand font-bold text-lg">
+            <div
+              className="w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg shrink-0"
+              style={{
+                backgroundColor: 'rgba(124,58,237,0.2)',
+                border: '1px solid rgba(124,58,237,0.3)',
+                color: '#7C3AED',
+              }}
+            >
               {user?.name?.charAt(0).toUpperCase()}
             </div>
             <div>
-              <p className="text-white font-medium">{user?.name}</p>
-              <p className="text-sm text-neutral">{user?.email}</p>
+              <p className="font-medium" style={{ color: '#F1F0FF' }}>{user?.name}</p>
+              <p className="text-sm" style={{ color: '#9896B8' }}>{user?.email}</p>
             </div>
           </div>
         </div>
 
         {/* Weekly Goals */}
-        <div className="bg-surface p-6 rounded-xl border border-slate-800 space-y-5">
+        <div className="p-6 rounded-xl space-y-5" style={CARD_STYLE}>
           <div className="flex items-start justify-between">
             <div>
-              <h2 className="text-lg font-bold text-white">Weekly Goals</h2>
-              <p className="text-sm text-neutral mt-0.5">
-                Set target hours per category for your week
+              <h2 className="text-base font-bold" style={{ color: '#F1F0FF' }}>Weekly Goals</h2>
+              <p className="text-sm mt-0.5" style={{ color: '#9896B8' }}>
+                Set target hours per category
               </p>
             </div>
-            <div className="flex items-center gap-1.5 text-xs text-neutral bg-slate-800 px-2.5 py-1 rounded-lg">
+            <div
+              className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg"
+              style={{ backgroundColor: '#14142A', color: '#9896B8', border: '1px solid #1A1A2E' }}
+            >
               <Info className="w-3.5 h-3.5" />
               168 hrs/week
             </div>
           </div>
 
-          {/* Hour inputs */}
+          {/* Inputs */}
           <div className="space-y-4">
             {(Object.keys(CATEGORY_CONFIG) as Array<keyof typeof CATEGORY_CONFIG>).map(cat => {
               const config = CATEGORY_CONFIG[cat];
               return (
-                <div key={cat} className="flex items-center gap-4">
-                  {/* Color dot + label */}
+                <div key={cat} className="flex items-center gap-3">
                   <div className="flex items-center gap-2 w-28 shrink-0">
-                    <div className={`w-2.5 h-2.5 rounded-full ${config.bg}`} />
-                    <span className="text-sm text-white">{config.label}</span>
+                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: config.color }} />
+                    <span className="text-sm" style={{ color: '#F1F0FF' }}>{config.label}</span>
                   </div>
-
-                  {/* Input */}
                   <input
                     type="number"
                     min={0}
                     max={168}
                     value={goals[cat]}
                     onChange={e => handleChange(cat, e.target.value)}
-                    className="w-20 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 
-                               text-white text-sm text-center focus:outline-none 
-                               focus:border-brand transition-colors"
+                    className="w-20 rounded-lg px-3 py-2 text-sm text-center
+                               focus:outline-none transition-colors"
+                    style={{
+                      backgroundColor: '#14142A',
+                      border: '1px solid #1A1A2E',
+                      color: '#F1F0FF',
+                    }}
+                    onFocus={e => (e.target.style.borderColor = '#7C3AED')}
+                    onBlur={e => (e.target.style.borderColor = '#1A1A2E')}
                   />
-
-                  {/* Mini bar */}
-                  <div className="flex-1 bg-slate-700 rounded-full h-2">
+                  <div className="flex-1 rounded-full h-1.5" style={{ backgroundColor: '#1A1A2E' }}>
                     <div
-                      className="h-2 rounded-full transition-all"
+                      className="h-1.5 rounded-full transition-all"
                       style={{
                         width: `${Math.min((goals[cat] / TOTAL_HOURS) * 100, 100)}%`,
                         backgroundColor: config.color,
                       }}
                     />
                   </div>
-
-                  <span className="text-xs text-neutral w-8 text-right shrink-0">
+                  <span className="text-xs w-8 text-right shrink-0" style={{ color: '#9896B8' }}>
                     {goals[cat]}h
                   </span>
                 </div>
@@ -170,16 +174,17 @@ export default function SettingsPage() {
           </div>
 
           {/* Live sum bar */}
-          <div className="space-y-2 pt-2 border-t border-slate-700">
+          <div className="space-y-2 pt-3" style={{ borderTop: '1px solid #1A1A2E' }}>
             <div className="flex justify-between text-sm">
-              <span className="text-neutral">Total allocated</span>
-              <span className={isOverLimit ? 'text-red-500 font-bold' : 'text-white font-bold'}>
+              <span style={{ color: '#9896B8' }}>Total allocated</span>
+              <span
+                className="font-bold"
+                style={{ color: isOverLimit ? '#f87171' : '#F1F0FF' }}
+              >
                 {total}h / 168h
               </span>
             </div>
-
-            {/* Stacked bar */}
-            <div className="w-full bg-slate-700 rounded-full h-3 flex overflow-hidden">
+            <div className="w-full rounded-full h-2.5 flex overflow-hidden" style={{ backgroundColor: '#1A1A2E' }}>
               {(Object.keys(CATEGORY_CONFIG) as Array<keyof typeof CATEGORY_CONFIG>).map(cat => (
                 <div
                   key={cat}
@@ -191,41 +196,42 @@ export default function SettingsPage() {
                 />
               ))}
             </div>
-
             <div className="flex justify-between text-xs">
-              <span className={remaining < 0 ? 'text-red-500' : 'text-neutral'}>
-                {remaining >= 0
-                  ? `${remaining}h unallocated`
-                  : `${Math.abs(remaining)}h over limit`
-                }
+              <span style={{ color: remaining < 0 ? '#f87171' : '#9896B8' }}>
+                {remaining >= 0 ? `${remaining}h unallocated` : `${Math.abs(remaining)}h over limit`}
               </span>
-              <span className="text-neutral/60">Max 168h per week</span>
+              <span style={{ color: '#4A4A6A' }}>Max 168h per week</span>
             </div>
           </div>
 
           {/* Error */}
           {error && (
-            <div className="text-red-500 text-sm bg-red-500/10 border border-red-500/20 
-                            px-3 py-2 rounded-lg">
+            <div
+              className="text-sm px-3 py-2 rounded-lg"
+              style={{
+                color: '#f87171',
+                backgroundColor: 'rgba(248,113,113,0.1)',
+                border: '1px solid rgba(248,113,113,0.2)',
+              }}
+            >
               {error}
             </div>
           )}
 
-          {/* Save button */}
+          {/* Save */}
           <button
             onClick={() => !isOverLimit && saveGoals()}
             disabled={isSaving || isOverLimit}
-            className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg 
-                        font-medium text-sm transition-all
-                        ${saved
-                          ? 'bg-green-500/20 text-green-500 border border-green-500/30'
-                          : isOverLimit
-                          ? 'bg-slate-700 text-neutral cursor-not-allowed'
-                          : 'bg-brand text-white hover:bg-brand/90'
-                        } disabled:opacity-50`}
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg
+                       font-medium text-sm transition-all disabled:opacity-50"
+            style={{
+              backgroundColor: isOverLimit ? '#14142A' : '#7C3AED',
+              color: isOverLimit ? '#9896B8' : '#ffffff',
+              cursor: isOverLimit ? 'not-allowed' : 'pointer',
+            }}
           >
             <Save className="w-4 h-4" />
-            {isSaving ? 'Saving...' : saved ? 'Saved ✓' : 'Save Goals'}
+            {isSaving ? 'Saving...' : 'Save Goals'}
           </button>
         </div>
 

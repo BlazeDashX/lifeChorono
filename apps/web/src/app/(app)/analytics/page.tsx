@@ -2,16 +2,13 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { format, subDays, startOfWeek, addDays, subWeeks } from 'date-fns';
+import { format, subDays, startOfWeek, subWeeks } from 'date-fns';
 import { api } from '@/lib/api';
 import AppLayout from '@/components/layout/AppLayout';
-import MoodCalendar from '@/components/dashboard/MoodCalender';
 import {
   Moon, Activity, Target, Sparkles,
   ChevronDown, ChevronUp, AlertCircle, Loader2, CheckCircle2, XCircle,
 } from 'lucide-react';
-
-// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface TimeEntry {
   id: string;
@@ -61,8 +58,6 @@ interface WeeklyGoalData {
   neutral: GoalProgress;
 }
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-
 const CATEGORY_CONFIG = {
   productive:  { label: 'Productive',  color: '#10B981' },
   leisure:     { label: 'Leisure',     color: '#F59E0B' },
@@ -70,11 +65,12 @@ const CATEGORY_CONFIG = {
   neutral:     { label: 'Neutral',     color: '#64748B' },
 } as const;
 
-// ─── Insight Card ─────────────────────────────────────────────────────────────
+const CARD_STYLE = {
+  backgroundColor: '#0F0F1A',
+  border: '1px solid #1A1A2E',
+};
 
-function InsightCard({
-  label, dateRange, insight, onGenerate, isGenerating,
-}: {
+function InsightCard({ label, dateRange, insight, onGenerate, isGenerating }: {
   label: string;
   dateRange: string;
   insight: Insight | null;
@@ -83,15 +79,13 @@ function InsightCard({
 }) {
   const [expanded, setExpanded] = useState(false);
 
-  const getScoreColor = (score: number) =>
-    score >= 80 ? 'text-green-500' : score >= 60 ? 'text-yellow-500' : 'text-red-500';
-
-  const getScoreBg = (score: number) =>
-    score >= 80
-      ? 'bg-green-500/10 border-green-500/20'
-      : score >= 60
-      ? 'bg-yellow-500/10 border-yellow-500/20'
-      : 'bg-red-500/10 border-red-500/20';
+  const getScoreColor = (s: number) => s >= 80 ? '#10B981' : s >= 60 ? '#F59E0B' : '#f87171';
+  const getScoreBg   = (s: number) =>
+    s >= 80
+      ? 'rgba(16,185,129,0.1)'
+      : s >= 60
+      ? 'rgba(245,158,11,0.1)'
+      : 'rgba(248,113,113,0.1)';
 
   const getIcon = (rec: string) => {
     if (rec.toLowerCase().includes('sleep')) return <Moon className="w-3.5 h-3.5" />;
@@ -101,23 +95,28 @@ function InsightCard({
   };
 
   return (
-    <div className="bg-slate-800/40 rounded-xl border border-slate-700 overflow-hidden">
+    <div className="rounded-xl overflow-hidden" style={{ backgroundColor: '#14142A', border: '1px solid #1A1A2E' }}>
       <div className="p-4 flex items-center justify-between">
         <div>
-          <p className="text-white font-semibold text-sm">{label}</p>
-          <p className="text-xs text-neutral mt-0.5">{dateRange}</p>
+          <p className="font-semibold text-sm" style={{ color: '#F1F0FF' }}>{label}</p>
+          <p className="text-xs mt-0.5" style={{ color: '#9896B8' }}>{dateRange}</p>
         </div>
         <div className="flex items-center gap-3">
           {insight ? (
             <>
-              <div className={`px-2.5 py-1 rounded-lg border text-sm font-bold 
-                               ${getScoreBg(insight.balanceScore)} 
-                               ${getScoreColor(insight.balanceScore)}`}>
+              <div
+                className="px-2.5 py-1 rounded-lg text-sm font-bold"
+                style={{
+                  backgroundColor: getScoreBg(insight.balanceScore),
+                  color: getScoreColor(insight.balanceScore),
+                  border: `1px solid ${getScoreColor(insight.balanceScore)}30`,
+                }}
+              >
                 {insight.balanceScore}/100
               </div>
               <button
                 onClick={() => setExpanded(!expanded)}
-                className="text-neutral hover:text-white transition-colors"
+                style={{ color: '#9896B8' }}
               >
                 {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
               </button>
@@ -126,9 +125,13 @@ function InsightCard({
             <button
               onClick={onGenerate}
               disabled={isGenerating}
-              className="flex items-center gap-1.5 text-xs bg-brand/20 text-brand
-                         border border-brand/30 hover:bg-brand/30 px-3 py-1.5
-                         rounded-lg transition-all disabled:opacity-50"
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg
+                         transition-all disabled:opacity-50"
+              style={{
+                backgroundColor: 'rgba(124,58,237,0.15)',
+                color: '#7C3AED',
+                border: '1px solid rgba(124,58,237,0.3)',
+              }}
             >
               {isGenerating
                 ? <><Loader2 className="w-3 h-3 animate-spin" /> Generating...</>
@@ -140,22 +143,26 @@ function InsightCard({
       </div>
 
       {insight && expanded && (
-        <div className="px-4 pb-4 space-y-3 border-t border-slate-700 pt-4">
-          <p className="text-sm text-neutral leading-relaxed">{insight.summary}</p>
+        <div className="px-4 pb-4 space-y-3 pt-4" style={{ borderTop: '1px solid #1A1A2E' }}>
+          <p className="text-sm leading-relaxed" style={{ color: '#9896B8' }}>{insight.summary}</p>
           {insight.recommendations.length > 0 && (
             <div className="space-y-2">
-              <p className="text-xs font-semibold text-white uppercase tracking-wider">
+              <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#F1F0FF' }}>
                 Recommendations
               </p>
               {insight.recommendations.map((rec, i) => (
-                <div key={i} className="flex items-start gap-2.5 bg-slate-800/50 p-2.5 rounded-lg">
-                  <div className="text-brand mt-0.5">{getIcon(rec)}</div>
-                  <p className="text-xs text-neutral flex-1">{rec}</p>
+                <div
+                  key={i}
+                  className="flex items-start gap-2.5 p-2.5 rounded-lg"
+                  style={{ backgroundColor: 'rgba(26,26,46,0.6)' }}
+                >
+                  <div className="mt-0.5 shrink-0" style={{ color: '#7C3AED' }}>{getIcon(rec)}</div>
+                  <p className="text-xs flex-1" style={{ color: '#9896B8' }}>{rec}</p>
                 </div>
               ))}
             </div>
           )}
-          <p className="text-xs text-neutral/50">
+          <p className="text-xs" style={{ color: '#4A4A6A' }}>
             Generated {new Date(insight.generatedAt).toLocaleDateString()}
           </p>
         </div>
@@ -163,7 +170,7 @@ function InsightCard({
 
       {!insight && !isGenerating && (
         <div className="px-4 pb-3">
-          <p className="text-xs text-neutral/50 flex items-center gap-1.5">
+          <p className="text-xs flex items-center gap-1.5" style={{ color: '#4A4A6A' }}>
             <AlertCircle className="w-3.5 h-3.5" />
             No insight generated yet
           </p>
@@ -173,16 +180,14 @@ function InsightCard({
   );
 }
 
-// ─── Goal Hit Rate ────────────────────────────────────────────────────────────
-
 function GoalHitRate({ weeklyGoalData }: { weeklyGoalData: WeeklyGoalData[] }) {
   const categories = Object.keys(CATEGORY_CONFIG) as Array<keyof typeof CATEGORY_CONFIG>;
 
   return (
-    <div className="bg-surface p-6 rounded-xl border border-slate-800 space-y-4">
+    <div className="p-6 rounded-xl space-y-4" style={CARD_STYLE}>
       <div>
-        <h3 className="text-lg font-bold text-white">Goal Hit Rate</h3>
-        <p className="text-sm text-neutral mt-0.5">
+        <h3 className="text-base font-bold" style={{ color: '#F1F0FF' }}>Goal Hit Rate</h3>
+        <p className="text-sm mt-0.5" style={{ color: '#9896B8' }}>
           Did you hit your weekly goals over the last 4 weeks?
         </p>
       </div>
@@ -191,61 +196,46 @@ function GoalHitRate({ weeklyGoalData }: { weeklyGoalData: WeeklyGoalData[] }) {
         <table className="w-full text-sm">
           <thead>
             <tr>
-              <td className="text-neutral text-xs pb-3 pr-4 w-28">Category</td>
+              <td className="text-xs pb-3 pr-4 w-28" style={{ color: '#9896B8' }}>Category</td>
               {weeklyGoalData.map(week => (
-                <td key={week.weekStart} className="text-neutral text-xs pb-3 text-center">
-                  <span className="block">{week.weekLabel}</span>
+                <td key={week.weekStart} className="text-xs pb-3 text-center" style={{ color: '#9896B8' }}>
+                  {week.weekLabel}
                 </td>
               ))}
-              <td className="text-neutral text-xs pb-3 text-center pl-4">Hit Rate</td>
+              <td className="text-xs pb-3 text-center pl-4" style={{ color: '#9896B8' }}>Rate</td>
             </tr>
           </thead>
-          <tbody className="space-y-2">
+          <tbody>
             {categories.map(cat => {
               const config = CATEGORY_CONFIG[cat];
               const hits = weeklyGoalData.filter(w => w[cat].met).length;
               const hitRate = Math.round((hits / weeklyGoalData.length) * 100);
 
               return (
-                <tr key={cat} className="border-t border-slate-800">
+                <tr key={cat} style={{ borderTop: '1px solid #1A1A2E' }}>
                   <td className="py-3 pr-4">
                     <div className="flex items-center gap-2">
-                      <div
-                        className="w-2 h-2 rounded-full shrink-0"
-                        style={{ backgroundColor: config.color }}
-                      />
-                      <span className="text-white text-xs">{config.label}</span>
+                      <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: config.color }} />
+                      <span className="text-xs" style={{ color: '#F1F0FF' }}>{config.label}</span>
                     </div>
                   </td>
-
                   {weeklyGoalData.map(week => (
                     <td key={week.weekStart} className="py-3 text-center">
                       {week[cat].met ? (
-                        <CheckCircle2 className="w-4 h-4 text-green-500 mx-auto" />
+                        <CheckCircle2 className="w-4 h-4 mx-auto" style={{ color: '#10B981' }} />
                       ) : week[cat].logged > 0 ? (
-                        <div className="mx-auto w-4 h-4 flex items-center justify-center">
-                          <span
-                            className="text-xs font-bold"
-                            style={{ color: config.color }}
-                          >
-                            {week[cat].percent}%
-                          </span>
-                        </div>
+                        <span className="text-xs font-bold" style={{ color: config.color }}>
+                          {week[cat].percent}%
+                        </span>
                       ) : (
-                        <XCircle className="w-4 h-4 text-slate-600 mx-auto" />
+                        <XCircle className="w-4 h-4 mx-auto" style={{ color: '#2A2A3E' }} />
                       )}
                     </td>
                   ))}
-
                   <td className="py-3 text-center pl-4">
                     <span
-                      className={`text-xs font-bold ${
-                        hitRate >= 75
-                          ? 'text-green-500'
-                          : hitRate >= 50
-                          ? 'text-amber-500'
-                          : 'text-neutral'
-                      }`}
+                      className="text-xs font-bold"
+                      style={{ color: hitRate >= 75 ? '#10B981' : hitRate >= 50 ? '#F59E0B' : '#9896B8' }}
                     >
                       {hits}/{weeklyGoalData.length}
                     </span>
@@ -257,26 +247,23 @@ function GoalHitRate({ weeklyGoalData }: { weeklyGoalData: WeeklyGoalData[] }) {
         </table>
       </div>
 
-      {/* Legend */}
-      <div className="flex items-center gap-4 pt-2 border-t border-slate-800 text-xs text-neutral">
+      <div
+        className="flex items-center gap-4 pt-2 text-xs"
+        style={{ borderTop: '1px solid #1A1A2E', color: '#9896B8' }}
+      >
         <div className="flex items-center gap-1.5">
-          <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
-          Goal met
+          <CheckCircle2 className="w-3.5 h-3.5" style={{ color: '#10B981' }} /> Goal met
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="text-xs font-bold text-amber-500">75%</span>
-          Partial
+          <span className="font-bold" style={{ color: '#F59E0B' }}>75%</span> Partial
         </div>
         <div className="flex items-center gap-1.5">
-          <XCircle className="w-3.5 h-3.5 text-slate-600" />
-          Not logged
+          <XCircle className="w-3.5 h-3.5" style={{ color: '#2A2A3E' }} /> Not logged
         </div>
       </div>
     </div>
   );
 }
-
-// ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function AnalyticsPage() {
   const queryClient = useQueryClient();
@@ -287,27 +274,22 @@ export default function AnalyticsPage() {
   const startDate = subDays(new Date(), dateRange);
   const endDate = new Date();
 
-  // ── Entries ──
   const { data: entries = [], isLoading } = useQuery<TimeEntry[]>({
     queryKey: ['analytics-entries', dateRange],
     queryFn: () =>
-      api
-        .get(`/entries?startDate=${format(startDate, 'yyyy-MM-dd')}&endDate=${format(endDate, 'yyyy-MM-dd')}`)
-        .then(res => res.data),
+      api.get(`/entries?startDate=${format(startDate, 'yyyy-MM-dd')}&endDate=${format(endDate, 'yyyy-MM-dd')}`)
+         .then(res => res.data),
   });
 
-  // ── Weekly goal data — fetch last 4 weeks from dashboard API ──
   const { data: weeklyGoalData = [] } = useQuery<WeeklyGoalData[]>({
     queryKey: ['weekly-goal-history'],
     queryFn: async () => {
       const results: WeeklyGoalData[] = [];
-
       for (let i = 1; i <= 4; i++) {
         const weekStart = startOfWeek(subWeeks(new Date(), i), { weekStartsOn: 1 });
         const weekStartStr = format(weekStart, 'yyyy-MM-dd');
         const res = await api.get(`/dashboard/week?weekStart=${weekStartStr}`);
         const d = res.data;
-
         results.push({
           weekStart: weekStartStr,
           weekLabel: format(weekStart, 'MMM d'),
@@ -317,24 +299,20 @@ export default function AnalyticsPage() {
           neutral:     d.goalProgress.neutral,
         });
       }
-
       return results;
     },
   });
 
-  // ── Weekly history ──
   const { data: weeklyHistory = [], refetch: refetchWeekly } = useQuery<WeekPeriod[]>({
     queryKey: ['weekly-history'],
     queryFn: () => api.get('/ai-insights/weekly-history').then(res => res.data),
   });
 
-  // ── Monthly history ──
   const { data: monthlyHistory = [], refetch: refetchMonthly } = useQuery<MonthPeriod[]>({
     queryKey: ['monthly-history'],
     queryFn: () => api.get('/ai-insights/monthly-history').then(res => res.data),
   });
 
-  // ── Mutations ──
   const generateWeek = useMutation({
     mutationFn: (weeksBack: number) =>
       api.post(`/ai-insights/generate-week?weeksBack=${weeksBack}`).then(res => res.data),
@@ -349,7 +327,6 @@ export default function AnalyticsPage() {
     onSettled: () => setGeneratingKey(null),
   });
 
-  // ── Analytics ──
   const totalHours = entries.reduce((sum, e) => sum + e.durationMinutes / 60, 0);
   const avgDailyHours = totalHours / dateRange;
   const categoryBreakdown = entries.reduce((acc, e) => {
@@ -360,161 +337,137 @@ export default function AnalyticsPage() {
     .filter(e => e.moodScore)
     .map(e => ({ date: e.date, score: e.moodScore! }));
 
+  // Top bar right slot — date range selector
+const topBarRight = (
+    <div className="flex gap-1.5">
+      {[7, 14, 30, 90].map(days => (
+        <button
+          key={days}
+          onClick={() => setDateRange(days)}
+          className="px-3 py-1 rounded-lg text-xs font-medium transition-all"
+          style={{
+            backgroundColor: dateRange === days ? '#7C3AED' : 'rgba(20,20,42,0.8)',
+            color: dateRange === days ? '#ffffff' : '#9896B8',
+            border: dateRange === days ? 'none' : '1px solid #1A1A2E',
+          }}
+        >
+          {days === 7 ? '7d' : days === 14 ? '14d' : days === 30 ? '30d' : '90d'}
+        </button>
+      ))}
+    </div>
+  );
+
   if (isLoading) {
     return (
       <AppLayout>
-        <div className="p-8 text-neutral animate-pulse">Loading analytics...</div>
+        <div className="flex items-center justify-center h-full min-h-[50vh]">
+          <Loader2 className="w-8 h-8 animate-spin" style={{ color: '#7C3AED' }} />
+        </div>
       </AppLayout>
     );
   }
 
   return (
     <AppLayout>
-      <div className="max-w-3xl mx-auto p-4 pb-24 space-y-8">
-
-        {/* Header */}
-        <div className="bg-surface p-6 rounded-xl border border-slate-800">
-          <h1 className="text-2xl font-bold text-white mb-4">Analytics</h1>
-          <div className="flex gap-2 flex-wrap">
+      <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-6 pb-24">
+        
+        {/* Header Area with Date Range Selector */}
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-[#F1F0FF]">Analytics</h1>
+          <div className="flex gap-1.5 bg-[#0F0F1A] p-1 rounded-lg border border-[#1A1A2E]">
             {[7, 14, 30, 90].map(days => (
               <button
                 key={days}
                 onClick={() => setDateRange(days)}
-                className={`px-4 py-2 rounded-lg text-sm transition-colors ${
-                  dateRange === days
-                    ? 'bg-brand text-white'
-                    : 'bg-slate-800 text-neutral hover:bg-slate-700'
-                }`}
+                className="px-3 py-1.5 rounded-md text-xs font-medium transition-all"
+                style={{
+                  backgroundColor: dateRange === days ? '#7C3AED' : 'transparent',
+                  color: dateRange === days ? '#ffffff' : '#9896B8',
+                }}
               >
-                {days === 7 ? 'Week' : days === 14 ? '2 Weeks' : days === 30 ? 'Month' : '3 Months'}
+                {days}d
               </button>
             ))}
           </div>
         </div>
-
-        {/* Stats Grid */}
-        <div className="grid grid-cols-3 gap-4">
-          {[
-            { label: 'Total Hours',   value: totalHours.toFixed(1),     sub: `Last ${dateRange} days` },
-            { label: 'Daily Average', value: avgDailyHours.toFixed(1),  sub: 'Hours per day'          },
-            { label: 'Total Entries', value: String(entries.length),    sub: 'Activities logged'      },
-          ].map(({ label, value, sub }) => (
-            <div key={label} className="bg-surface p-4 rounded-xl border border-slate-800">
-              <p className="text-xs text-neutral mb-1">{label}</p>
-              <p className="text-2xl font-bold text-white">{value}</p>
-              <p className="text-xs text-neutral/60 mt-1">{sub}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Category Breakdown */}
-        <div className="bg-surface p-6 rounded-xl border border-slate-800">
-          <h3 className="text-lg font-bold text-white mb-4">Category Breakdown</h3>
-          <div className="space-y-3">
-            {Object.entries(categoryBreakdown).map(([category, hours]) => (
-              <div key={category} className="flex items-center justify-between">
-                <span className="text-white capitalize text-sm">{category}</span>
-                <div className="flex items-center gap-3">
-                  <div className="w-32 bg-slate-700 rounded-full h-2">
-                    <div
-                      className="h-2 rounded-full"
-                      style={{
-                        width: `${(hours / totalHours) * 100}%`,
-                        backgroundColor:
-                          category === 'productive'  ? '#10B981' :
-                          category === 'leisure'     ? '#F59E0B' :
-                          category === 'restoration' ? '#06B6D4' : '#64748B',
-                      }}
-                    />
-                  </div>
-                  <span className="text-neutral text-sm w-12 text-right">
-                    {hours.toFixed(1)}h
-                  </span>
-                </div>
-              </div>
-            ))}
+        
+        {/* High-Level Stats */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="p-5 rounded-xl" style={CARD_STYLE}>
+            <p className="text-sm" style={{ color: '#9896B8' }}>Total Logged</p>
+            <p className="text-2xl font-bold mt-1" style={{ color: '#F1F0FF' }}>
+              {totalHours.toFixed(1)} <span className="text-sm font-normal text-[#9896B8]">hrs</span>
+            </p>
+          </div>
+          <div className="p-5 rounded-xl" style={CARD_STYLE}>
+            <p className="text-sm" style={{ color: '#9896B8' }}>Daily Average</p>
+            <p className="text-2xl font-bold mt-1" style={{ color: '#F1F0FF' }}>
+              {avgDailyHours.toFixed(1)} <span className="text-sm font-normal text-[#9896B8]">hrs/day</span>
+            </p>
           </div>
         </div>
 
-        {/* Goal Hit Rate */}
+        {/* Goal Hit Rate Table */}
         {weeklyGoalData.length > 0 && (
           <GoalHitRate weeklyGoalData={weeklyGoalData} />
         )}
 
-        {/* Mood Calendar */}
-        {moodData.length > 0 && (
-          <div className="bg-surface p-6 rounded-xl border border-slate-800">
-            <h3 className="text-lg font-bold text-white mb-4">Mood Heatmap</h3>
-            <MoodCalendar data={moodData} />
-          </div>
-        )}
-
-        {/* Historical AI Insights */}
-        <div className="bg-surface p-6 rounded-xl border border-slate-800">
-          <div className="flex items-center justify-between mb-5">
-            <h3 className="text-lg font-bold text-white">Historical Insights</h3>
-            <div className="flex bg-slate-800 rounded-lg p-1 gap-1">
-              {(['weekly', 'monthly'] as const).map(tab => (
-                <button
-                  key={tab}
-                  onClick={() => setInsightTab(tab)}
-                  className={`px-3 py-1 rounded-md text-xs font-medium transition-all capitalize ${
-                    insightTab === tab
-                      ? 'bg-brand text-white'
-                      : 'text-neutral hover:text-white'
-                  }`}
-                >
-                  {tab}
-                </button>
-              ))}
-            </div>
+        {/* AI Insights Section */}
+        <div className="rounded-xl overflow-hidden" style={CARD_STYLE}>
+          <div className="p-4 flex gap-6 border-b" style={{ borderColor: '#1A1A2E' }}>
+            <button
+              onClick={() => setInsightTab('weekly')}
+              className="text-sm font-medium pb-4 -mb-4 transition-colors"
+              style={{
+                color: insightTab === 'weekly' ? '#F1F0FF' : '#9896B8',
+                borderBottom: insightTab === 'weekly' ? '2px solid #7C3AED' : '2px solid transparent'
+              }}
+            >
+              Weekly Insights
+            </button>
+            <button
+              onClick={() => setInsightTab('monthly')}
+              className="text-sm font-medium pb-4 -mb-4 transition-colors"
+              style={{
+                color: insightTab === 'monthly' ? '#F1F0FF' : '#9896B8',
+                borderBottom: insightTab === 'monthly' ? '2px solid #7C3AED' : '2px solid transparent'
+              }}
+            >
+              Monthly Insights
+            </button>
           </div>
 
-          {insightTab === 'weekly' && (
-            <div className="space-y-3">
-              {weeklyHistory.map((period, i) => {
-                const key = `week-${i + 1}`;
-                const start = new Date(period.weekStart);
-                const end = new Date(period.weekEnd);
-                return (
-                  <InsightCard
-                    key={key}
-                    label={period.label}
-                    dateRange={`${format(start, 'MMM d')} – ${format(end, 'MMM d, yyyy')}`}
-                    insight={period.insight}
-                    isGenerating={generatingKey === key}
-                    onGenerate={() => {
-                      setGeneratingKey(key);
-                      generateWeek.mutate(i + 1);
-                    }}
-                  />
-                );
-              })}
-            </div>
-          )}
-
-          {insightTab === 'monthly' && (
-            <div className="space-y-3">
-              {monthlyHistory.map((period, i) => {
-                const key = `month-${i + 1}`;
-                const start = new Date(period.monthStart);
-                const end = new Date(period.monthEnd);
-                return (
-                  <InsightCard
-                    key={key}
-                    label={period.label}
-                    dateRange={`${format(start, 'MMM d')} – ${format(end, 'MMM d, yyyy')}`}
-                    insight={period.insight}
-                    isGenerating={generatingKey === key}
-                    onGenerate={() => {
-                      setGeneratingKey(key);
-                      generateMonth.mutate(i + 1);
-                    }}
-                  />
-                );
-              })}
-            </div>
-          )}
+          <div className="p-4 space-y-4">
+            {insightTab === 'weekly' ? (
+              weeklyHistory.map((period, index) => (
+                <InsightCard
+                  key={period.weekStart}
+                  label={period.label}
+                  dateRange={`${format(new Date(period.weekStart), 'MMM d')} - ${format(new Date(period.weekEnd), 'MMM d')}`}
+                  insight={period.insight}
+                  onGenerate={() => {
+                    setGeneratingKey(`week-${index}`);
+                    generateWeek.mutate(index + 1);
+                  }}
+                  isGenerating={generatingKey === `week-${index}`}
+                />
+              ))
+            ) : (
+              monthlyHistory.map((period, index) => (
+                <InsightCard
+                  key={period.monthStart}
+                  label={period.label}
+                  dateRange={`${format(new Date(period.monthStart), 'MMMM yyyy')}`}
+                  insight={period.insight}
+                  onGenerate={() => {
+                    setGeneratingKey(`month-${index}`);
+                    generateMonth.mutate(index + 1);
+                  }}
+                  isGenerating={generatingKey === `month-${index}`}
+                />
+              ))
+            )}
+          </div>
         </div>
 
       </div>

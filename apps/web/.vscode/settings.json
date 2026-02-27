@@ -1,0 +1,14 @@
+{
+  "css.validate": true,
+  "css.lint.unknownAtRules": "ignore",
+  "css.customData": [".vscode/css-custom-data.json"],
+  "tailwindCSS.includeLanguages": {
+    "css": "css"
+  },
+  "tailwindCSS.experimental.classRegex": [],
+  "files.watcherExclude": {
+    "**/.next/**": true,
+    "**/node_modules/**": true
+  },
+  "typescript.preferences.includePackageJsonAutoImports": "auto"
+}

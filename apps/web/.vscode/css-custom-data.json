@@ -1,0 +1,45 @@
+{
+  "version": 1.1,
+  "atDirectives": [
+    {
+      "name": "@theme",
+      "description": "Tailwind CSS v4 theme directive",
+      "references": [
+        {
+          "name": "Tailwind CSS v4 documentation",
+          "url": "https://tailwindcss.com/docs/v4-beta"
+        }
+      ]
+    },
+    {
+      "name": "@import",
+      "description": "CSS import directive",
+      "references": [
+        {
+          "name": "MDN documentation",
+          "url": "https://developer.mozilla.org/en-US/docs/Web/CSS/@import"
+        }
+      ]
+    },
+    {
+      "name": "@layer",
+      "description": "CSS cascade layer directive",
+      "references": [
+        {
+          "name": "MDN documentation",
+          "url": "https://developer.mozilla.org/en-US/docs/Web/CSS/@layer"
+        }
+      ]
+    },
+    {
+      "name": "@keyframes",
+      "description": "CSS keyframes directive",
+      "references": [
+        {
+          "name": "MDN documentation",
+          "url": "https://developer.mozilla.org/en-US/docs/Web/CSS/@keyframes"
+        }
+      ]
+    }
+  ]
+}
