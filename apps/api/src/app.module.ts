@@ -5,6 +5,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { TimeEntriesModule } from './time-entries/time-entries.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { RecurringModule } from './recurring/recurring.module';
+import { AiInsightsModule } from './ai-insights/ai-insights.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { RecurringModule } from './recurring/recurring.module';
     TimeEntriesModule,
     DashboardModule,
     RecurringModule,
+    AiInsightsModule,
   ],
   controllers: [],
   providers: [],

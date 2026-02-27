@@ -1,0 +1,42 @@
+/* Mood Calendar Colors */
+.fill-mood-1 {
+  fill: #ef4444; /* Red - Awful */
+  stroke: #ef4444;
+}
+
+.fill-mood-2 {
+  fill: #f97316; /* Orange - Bad */
+  stroke: #f97316;
+}
+
+.fill-mood-3 {
+  fill: #eab308; /* Yellow - Neutral */
+  stroke: #eab308;
+}
+
+.fill-mood-4 {
+  fill: #22c55e; /* Green - Good */
+  stroke: #22c55e;
+}
+
+.fill-mood-5 {
+  fill: #10b981; /* Emerald - Awesome */
+  stroke: #10b981;
+}
+
+/* React Calendar Heatmap Overrides */
+.react-calendar-heatmap text {
+  fill: #9ca3af;
+  font-size: 8px;
+}
+
+.react-calendar-heatmap .react-calendar-heatmap-small-text {
+  font-size: 6px;
+}
+
+/* Hover effects */
+.react-calendar-heatmap rect:hover {
+  stroke: #ffffff;
+  stroke-width: 2px;
+  filter: brightness(1.2);
+}

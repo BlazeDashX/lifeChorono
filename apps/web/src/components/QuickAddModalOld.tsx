@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createEntry } from '@/lib/api-entries';
 import { format } from 'date-fns';
@@ -21,38 +21,32 @@ export default function QuickAddModal({
   
   const [title, setTitle] = useState(prefillData?.title || '');
   const [category, setCategory] = useState<'productive' | 'leisure' | 'restoration' | 'neutral' | null>(prefillData?.category || null);
+  const [moodScore, setMoodScore] = useState(3);
 
-  // Update form when prefillData changes
-  useEffect(() => {
-    if (prefillData) {
-      setTitle(prefillData.title || '');
-      setCategory(prefillData.category || null);
+  // Calculate default times based on recurring task
+  const getDefaultTimes = () => {
+    if (prefillData?.defaultDuration) {
+      // For recurring tasks, set reasonable default times for today
+      const now = new Date();
+      const start = new Date(now);
+      start.setHours(9, 0, 0, 0); // Default to 9 AM
+      const end = new Date(start);
+      end.setMinutes(start.getMinutes() + prefillData.defaultDuration);
       
-      // Update times for recurring task
-      if (prefillData.defaultDuration) {
-        const now = new Date();
-        const start = new Date(now);
-        start.setHours(9, 0, 0, 0);
-        const end = new Date(start);
-        end.setMinutes(start.getMinutes() + prefillData.defaultDuration);
-        
-        const startMinutes = start.getHours() * 60 + start.getMinutes();
-        const endMinutes = end.getHours() * 60 + end.getMinutes();
-        
-        setTimeStart(`${String(Math.floor(startMinutes / 60)).padStart(2, '0')}:${String(startMinutes % 60).padStart(2, '0')}`);
-        setTimeEnd(`${String(Math.floor(endMinutes / 60)).padStart(2, '0')}:${String(endMinutes % 60).padStart(2, '0')}`);
-      }
-    } else {
-      // Reset form when no prefillData
-      setTitle('');
-      setCategory(null);
-      setTimeStart('09:00');
-      setTimeEnd('10:00');
+      const startMinutes = start.getHours() * 60 + start.getMinutes();
+      const endMinutes = end.getHours() * 60 + end.getMinutes();
+      
+      return {
+        startTime: `${String(Math.floor(startMinutes / 60)).padStart(2, '0')}:${String(startMinutes % 60).padStart(2, '0')}`,
+        endTime: `${String(Math.floor(endMinutes / 60)).padStart(2, '0')}:${String(endMinutes % 60).padStart(2, '0')}`,
+      };
     }
-  }, [prefillData]);
-
-  const [timeStart, setTimeStart] = useState('09:00');
-  const [timeEnd, setTimeEnd] = useState('10:00');
+    return { startTime: '09:00', endTime: '10:00' };
+  };
+  
+  const { startTime, endTime } = getDefaultTimes();
+  const [timeStart, setTimeStart] = useState(startTime);
+  const [timeEnd, setTimeEnd] = useState(endTime);
 
   const mutation = useMutation({
     mutationFn: createEntry,
@@ -127,6 +121,32 @@ export default function QuickAddModal({
           />
         </div>
 
+        <div className="mt-6 p-4 bg-gray-900/30 rounded-2xl border border-gray-800">
+          <p className="text-[10px] uppercase font-black text-gray-500 mb-3 tracking-widest">Energy Level</p>
+          <div className="flex justify-between items-center">
+            {[
+              { v: 1, e: '😫' },
+              { v: 2, e: '😕' },
+              { v: 3, e: '🙂' },
+              { v: 4, e: '😊' },
+              { v: 5, e: '🤩' }
+            ].map((m) => (
+              <button
+                key={m.v}
+                type="button"
+                onClick={() => setMoodScore(m.v)}
+                className={`text-3xl transition-all duration-300 ${
+                  moodScore === m.v 
+                    ? 'scale-150 drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]' 
+                    : 'opacity-30 grayscale hover:grayscale-0 hover:opacity-100'
+                }`}
+              >
+                {m.e}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="flex gap-3 mt-4">
           <button onClick={onClose} className="flex-1 p-3 rounded-lg bg-slate-800 text-white font-medium">Cancel</button>
           <button 
@@ -137,6 +157,7 @@ export default function QuickAddModal({
                 category,
                 startTime: `${dateStr}T${timeStart}:00Z`,
                 endTime: `${dateStr}T${timeEnd}:00Z`,
+                moodScore,
                 // Link to recurring task if this came from a suggestion
                 ...(prefillData?.id && { recurringTaskId: prefillData.id })
               };

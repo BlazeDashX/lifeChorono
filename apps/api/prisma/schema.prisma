@@ -37,6 +37,7 @@ model TimeEntry {
   date            DateTime       @db.Date
   isRecurring     Boolean        @default(false)
   recurringTaskId String?
+  moodScore       Int            @default(3)
   createdAt       DateTime       @default(now())
   user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   recurringTask   RecurringTask? @relation(fields: [recurringTaskId], references: [id])

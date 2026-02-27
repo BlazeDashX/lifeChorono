@@ -31,7 +31,7 @@ export class AuthService {
       },
     });
 
-    return this.generateTokens(user.id, user.email, user.isSuperAdmin);
+return this.generateTokens(user.id, user.email, user.name, user.isSuperAdmin);
   }
 
   async login(dto: LoginDto) {
@@ -41,7 +41,7 @@ export class AuthService {
     const isPasswordValid = await bcrypt.compare(dto.password, user.passwordHash); // Verify email + bcrypt compare 
     if (!isPasswordValid) throw new UnauthorizedException('Invalid credentials'); // Return 401 for wrong credentials 
 
-    return this.generateTokens(user.id, user.email, user.isSuperAdmin);
+return this.generateTokens(user.id, user.email, user.name, user.isSuperAdmin);
   }
 
   async refresh(refreshToken: string) {
@@ -75,7 +75,7 @@ export class AuthService {
     return { message: 'Logged out successfully' };
   }
 
-  private async generateTokens(userId: string, email: string, isSuperAdmin: boolean) {
+ private async generateTokens(userId: string, email: string, name: string, isSuperAdmin: boolean) {
     const payload = { sub: userId, email, isSuperAdmin };
     
     const [accessToken, refreshToken] = await Promise.all([
@@ -89,6 +89,6 @@ export class AuthService {
       }),
     ]);
 
-    return { accessToken, refreshToken, user: { id: userId, email, name: email, isSuperAdmin } }; // Return { accessToken, refreshToken, user } 
+  return { accessToken, refreshToken, user: { id: userId, email, name, isSuperAdmin } };
   }
 }

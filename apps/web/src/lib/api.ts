@@ -1,19 +1,25 @@
 import axios from 'axios';
-import { useAuthStore } from '@/stores/auth';
 import { API_URL } from '../../env-config';
 
-export const api = axios.create({ baseURL: API_URL });
+export const api = axios.create({ 
+  baseURL: API_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  }
+});
 
 api.interceptors.request.use((config) => {
-  const token = useAuthStore.getState().accessToken;
+  const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
-// Auto-retry with refresh token on 401
 api.interceptors.response.use(null, async (error) => {
   if (error.response?.status === 401) {
-    await useAuthStore.getState().refresh();  // refresh + retry
+    // Clear bad auth and redirect to login
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('user');
+    window.location.href = '/login';
   }
   return Promise.reject(error);
 });

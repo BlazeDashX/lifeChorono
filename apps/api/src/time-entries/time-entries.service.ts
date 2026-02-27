@@ -15,6 +15,9 @@ export class TimeEntriesService {
     if (durationMinutes < 1) throw new BadRequestException('Min 1 minute');
     if (durationMinutes > 1440) throw new BadRequestException('Max 24 hours');
 
+    // Check for overlapping entries
+    await this.checkForOverlaps(userId, start, end);
+
     // Extract just the date (YYYY-MM-DD) for grouping purposes
     const date = new Date(start.toISOString().split('T')[0]);
 
@@ -33,6 +36,34 @@ export class TimeEntriesService {
         recurringTaskId: dto.recurringTaskId,
       },
     });
+  }
+
+  private async checkForOverlaps(userId: string, startTime: Date, endTime: Date) {
+    // Get all entries for the same day
+    const date = new Date(startTime.toISOString().split('T')[0]);
+    const existingEntries = await this.prisma.timeEntry.findMany({
+      where: {
+        userId,
+        date,
+      },
+    });
+
+    // Check for overlaps
+    for (const entry of existingEntries) {
+      const entryStart = new Date(entry.startTime);
+      const entryEnd = new Date(entry.endTime);
+
+      // Check if the new entry overlaps with existing entry
+      if (
+        (startTime >= entryStart && startTime < entryEnd) || // New start is during existing entry
+        (endTime > entryStart && endTime <= entryEnd) || // New end is during existing entry
+        (startTime <= entryStart && endTime >= entryEnd) // New entry completely covers existing entry
+      ) {
+        throw new BadRequestException(
+          `Time entry overlaps with existing entry: "${entry.title}" (${entryStart.toLocaleTimeString()} - ${entryEnd.toLocaleTimeString()})`
+        );
+      }
+    }
   }
 
   async getByDate(userId: string, dateString: string) {
@@ -75,6 +106,9 @@ export class TimeEntriesService {
       if (durationMinutes > 1440) throw new BadRequestException('Max 24 hours');
       
       newDate = new Date(start.toISOString().split('T')[0]);
+
+      // Check for overlaps (excluding the current entry)
+      await this.checkForOverlapsExcluding(userId, start, end, id);
     }
 
     return this.prisma.timeEntry.update({
@@ -87,6 +121,35 @@ export class TimeEntriesService {
     });
   }
 
+  private async checkForOverlapsExcluding(userId: string, startTime: Date, endTime: Date, excludeId: string) {
+    // Get all entries for the same day, excluding the current one
+    const date = new Date(startTime.toISOString().split('T')[0]);
+    const existingEntries = await this.prisma.timeEntry.findMany({
+      where: {
+        userId,
+        date,
+        id: { not: excludeId },
+      },
+    });
+
+    // Check for overlaps
+    for (const entry of existingEntries) {
+      const entryStart = new Date(entry.startTime);
+      const entryEnd = new Date(entry.endTime);
+
+      // Check if the new entry overlaps with existing entry
+      if (
+        (startTime >= entryStart && startTime < entryEnd) || // New start is during existing entry
+        (endTime > entryStart && endTime <= entryEnd) || // New end is during existing entry
+        (startTime <= entryStart && endTime >= entryEnd) // New entry completely covers existing entry
+      ) {
+        throw new BadRequestException(
+          `Time entry overlaps with existing entry: "${entry.title}" (${entryStart.toLocaleTimeString()} - ${entryEnd.toLocaleTimeString()})`
+        );
+      }
+    }
+  }
+
   async delete(userId: string, id: string) {
     const entry = await this.prisma.timeEntry.findUnique({ where: { id } });
     if (!entry) throw new NotFoundException('Entry not found');
@@ -94,5 +157,23 @@ export class TimeEntriesService {
 
     await this.prisma.timeEntry.delete({ where: { id } });
     return { success: true };
+  }
+
+  async getByDateRange(userId: string, startDate: string, endDate: string) {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    return this.prisma.timeEntry.findMany({
+      where: {
+        userId,
+        date: {
+          gte: start,
+          lte: end,
+        },
+      },
+      orderBy: {
+        startTime: 'asc',
+      },
+    });
   }
 }

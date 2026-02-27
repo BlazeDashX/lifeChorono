@@ -8,11 +8,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(private config: ConfigService) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-      secretOrKey: 'fallback-secret', // Use the same fallback as the service
+      secretOrKey: config.get<string>('JWT_SECRET') || 'fallback-secret',
     });
   }
 
   validate(payload: { sub: string; email: string; isSuperAdmin: boolean }) {
-    return payload;  
+    return payload;
   }
 }

@@ -1,6 +1,5 @@
 import { create } from 'zustand';
-import axios from 'axios';
-import { API_URL } from '../../env-config';
+import { api } from '@/lib/api';
 
 interface AuthState {
   accessToken: string | null;
@@ -41,15 +40,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ accessToken, user });
   },
   refresh: async () => {
-    try {
-      const res = await axios.post(`${API_URL}/api/auth/refresh`, {}, { withCredentials: true });
-      const token = res.data.accessToken;
-      setStoredAuth(token, getStoredUser());
-      set({ accessToken: token });
-    } catch (error) {
-      set({ accessToken: null, user: null });
-    }
-  },
+  try {
+    const res = await api.post('/auth/refresh', {});
+    const token = res.data.accessToken;
+    setStoredAuth(token, getStoredUser());
+    set({ accessToken: token });
+  } catch (error) {
+    set({ accessToken: null, user: null });
+  }
+},
   logout: () => {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('accessToken');

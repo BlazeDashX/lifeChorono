@@ -1,4 +1,4 @@
-import { IsString, IsEnum, IsOptional, IsDateString, IsUUID, IsNotEmpty } from 'class-validator';
+import { IsString, IsEnum, IsOptional, IsDateString, IsUUID, IsNotEmpty, IsNumber } from 'class-validator';
 import { Category } from '@prisma/client';
 
 export class CreateTimeEntryDto {
@@ -26,6 +26,10 @@ export class CreateTimeEntryDto {
   @IsOptional()
   @IsUUID()
   recurringTaskId?: string;
+
+  @IsNumber()
+  @IsOptional()
+  moodScore?: number;
 }
 
 export class UpdateTimeEntryDto {
@@ -35,4 +39,5 @@ export class UpdateTimeEntryDto {
   @IsOptional() @IsDateString() startTime?: string;
   @IsOptional() @IsDateString() endTime?: string;
   @IsOptional() @IsString() note?: string;
+  @IsOptional() @IsNumber() moodScore?: number;
 }

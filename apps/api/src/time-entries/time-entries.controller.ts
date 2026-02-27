@@ -14,11 +14,19 @@ export class TimeEntriesController {
   }
 
   @Get()
-  getEntries(@Request() req, @Query('date') date?: string, @Query('weekStart') weekStart?: string) {
+  getEntries(
+    @Request() req, 
+    @Query('date') date?: string, 
+    @Query('weekStart') weekStart?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string
+  ) {
     if (date) {
       return this.timeEntriesService.getByDate(req.user.sub, date);
     } else if (weekStart) {
       return this.timeEntriesService.getByWeek(req.user.sub, weekStart);
+    } else if (startDate && endDate) {
+      return this.timeEntriesService.getByDateRange(req.user.sub, startDate, endDate);
     }
     return []; // Fallback
   }
