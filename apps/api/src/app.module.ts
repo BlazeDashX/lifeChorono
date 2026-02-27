@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { AuthModule } from './auth/auth.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { TimeEntriesModule } from './time-entries/time-entries.module';
@@ -7,11 +8,12 @@ import { DashboardModule } from './dashboard/dashboard.module';
 import { RecurringModule } from './recurring/recurring.module';
 import { AiInsightsModule } from './ai-insights/ai-insights.module';
 import { UsersModule } from './users/users.module';
+import { SnapshotsModule } from './snapshot/snapshots.module';
 
 @Module({
   imports: [
-    // This loads your .env variables and makes them available everywhere
-    ConfigModule.forRoot({ isGlobal: true }), 
+    ConfigModule.forRoot({ isGlobal: true }),
+    ScheduleModule.forRoot(),
     PrismaModule,
     AuthModule,
     TimeEntriesModule,
@@ -19,8 +21,7 @@ import { UsersModule } from './users/users.module';
     RecurringModule,
     AiInsightsModule,
     UsersModule,
+    SnapshotsModule,
   ],
-  controllers: [],
-  providers: [],
 })
 export class AppModule {}
