@@ -6,6 +6,7 @@ import { TimeEntriesModule } from './time-entries/time-entries.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { RecurringModule } from './recurring/recurring.module';
 import { AiInsightsModule } from './ai-insights/ai-insights.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { AiInsightsModule } from './ai-insights/ai-insights.module';
     DashboardModule,
     RecurringModule,
     AiInsightsModule,
+    UsersModule,
   ],
   controllers: [],
   providers: [],

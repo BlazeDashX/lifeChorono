@@ -8,16 +8,15 @@ export class DashboardService {
   async getWeeklyDashboard(userId: string, weekStartString: string) {
     const weekStart = new Date(weekStartString);
     const weekEnd = new Date(weekStart);
-    weekEnd.setDate(weekEnd.getDate() + 6); // 7-day window
+    weekEnd.setDate(weekEnd.getDate() + 6);
 
-    // Fetch user goals and week's entries
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { weeklyGoals: true }
+      select: { weeklyGoals: true },
     });
 
     const entries = await this.prisma.timeEntry.findMany({
-      where: { userId, date: { gte: weekStart, lte: weekEnd } }
+      where: { userId, date: { gte: weekStart, lte: weekEnd } },
     });
 
     const breakdown = { productive: 0, leisure: 0, restoration: 0, neutral: 0 };
@@ -28,7 +27,7 @@ export class DashboardService {
       d.setDate(d.getDate() + i);
       return {
         date: d.toISOString().split('T')[0],
-        productive: 0, leisure: 0, restoration: 0, neutral: 0
+        productive: 0, leisure: 0, restoration: 0, neutral: 0,
       };
     });
 
@@ -43,37 +42,63 @@ export class DashboardService {
       if (dayData) dayData[cat] += hours;
     });
 
-    // Calculate Streak
+    // ── Streak calculation ──────────────────────────────────────────────────
     const allEntries = await this.prisma.timeEntry.findMany({
       where: { userId },
       select: { date: true },
-      orderBy: { date: 'desc' }
+      orderBy: { date: 'desc' },
     });
-    
-    const loggedDates = new Set(allEntries.map(e => e.date.toISOString().split('T')[0]));
+
+    const loggedDates = new Set(
+      allEntries.map(e => e.date.toISOString().split('T')[0])
+    );
+
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+    const loggedToday = loggedDates.has(todayStr);
+    const loggedYesterday = loggedDates.has(yesterdayStr);
+
     let streakDays = 0;
-    let checkDate = new Date();
-    
-    // If today is missing, check yesterday to see if streak is still alive
-    if (!loggedDates.has(checkDate.toISOString().split('T')[0])) {
-      checkDate.setDate(checkDate.getDate() - 1);
-    }
-    
-    while (loggedDates.has(checkDate.toISOString().split('T')[0])) {
-      streakDays++;
-      checkDate.setDate(checkDate.getDate() - 1);
+    let streakStatus: 'green' | 'amber' | 'none' = 'none';
+
+    if (loggedToday) {
+      // Count back from today
+      streakStatus = 'green';
+      let checkDate = new Date(today);
+      while (loggedDates.has(checkDate.toISOString().split('T')[0])) {
+        streakDays++;
+        checkDate.setDate(checkDate.getDate() - 1);
+      }
+    } else if (loggedYesterday) {
+      // Today not logged yet but streak still alive
+      streakStatus = 'amber';
+      let checkDate = new Date(yesterday);
+      while (loggedDates.has(checkDate.toISOString().split('T')[0])) {
+        streakDays++;
+        checkDate.setDate(checkDate.getDate() - 1);
+      }
+    } else {
+      // Streak is broken
+      streakStatus = 'none';
+      streakDays = 0;
     }
 
     return {
       totalHours: 168,
       loggedHours: loggedMinutes / 60,
-      unloggedHours: 168 - (loggedMinutes / 60),
+      unloggedHours: 168 - loggedMinutes / 60,
       breakdown,
-      // Provide fallback default goals if empty
-      goals: Object.keys(user?.weeklyGoals || {}).length ? user?.weeklyGoals : { productive: 40, leisure: 28, restoration: 56, neutral: 20 },
+      goals: Object.keys(user?.weeklyGoals || {}).length
+        ? user?.weeklyGoals
+        : { productive: 40, leisure: 28, restoration: 56, neutral: 20 },
       dailyBreakdown,
-      avgMoodScore: null, // Will be populated in Step 09
+      avgMoodScore: null,
       streakDays,
+      streakStatus, // 'green' | 'amber' | 'none'
     };
   }
 }

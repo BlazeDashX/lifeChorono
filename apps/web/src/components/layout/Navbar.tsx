@@ -18,6 +18,7 @@ export default function Navbar() {
     { href: '/dashboard', label: 'Dashboard' },
     { href: '/log', label: 'Log Time' },
     { href: '/analytics', label: 'Analytics' },
+    { href: '/settings', label: 'Settings' },
   ];
 
   const handleLogout = async () => {

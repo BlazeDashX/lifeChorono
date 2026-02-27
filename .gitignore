@@ -1,4 +1,83 @@
-node_modules/
-.env
-dist/
-.next/
+# ─── Environment Variables ────────────────────────────────────────────────────
+**/.env
+**/.env.local
+**/.env.development
+**/.env.development.local
+**/.env.test
+**/.env.test.local
+**/.env.production
+**/.env.production.local
+**/.env.staging
+
+# ─── Dependencies ─────────────────────────────────────────────────────────────
+**/node_modules/
+**/.pnp
+**/.pnp.js
+
+# ─── Build Outputs ────────────────────────────────────────────────────────────
+**/dist/
+**/build/
+**/.next/
+**/.turbo/
+**/out/
+
+# ─── NestJS ───────────────────────────────────────────────────────────────────
+apps/api/dist/
+apps/api/*.js.map
+
+# ─── Next.js ──────────────────────────────────────────────────────────────────
+apps/web/.next/
+apps/web/out/
+
+# ─── Prisma ───────────────────────────────────────────────────────────────────
+# Keep schema.prisma but ignore generated client
+apps/api/prisma/migrations/
+apps/api/node_modules/.prisma/
+
+# ─── Logs ─────────────────────────────────────────────────────────────────────
+**/logs/
+**/*.log
+**/npm-debug.log*
+**/yarn-debug.log*
+**/yarn-error.log*
+**/pnpm-debug.log*
+
+# ─── Testing ──────────────────────────────────────────────────────────────────
+**/coverage/
+**/.nyc_output/
+
+# ─── IDE & Editor ─────────────────────────────────────────────────────────────
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# ─── OS Files ─────────────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ─── Temp & Debug Files ───────────────────────────────────────────────────────
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+apps/api/src.zip
+apps/api/create-test-data.js
+apps/api/create-test-recurring.js
+
+# ─── TypeScript ───────────────────────────────────────────────────────────────
+*.tsbuildinfo
+
+# ─── Package Manager ──────────────────────────────────────────────────────────
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnpm-store/
