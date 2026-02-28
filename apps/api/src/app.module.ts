@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
+import { join } from 'path';
+
 import { AuthModule } from './auth/auth.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { TimeEntriesModule } from './time-entries/time-entries.module';
@@ -14,7 +16,10 @@ import { SnapshotsModule } from './snapshot/snapshots.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: '.env'
+    }),
     ScheduleModule.forRoot(),
     PrismaModule,
     AuthModule,

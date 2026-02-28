@@ -7,20 +7,20 @@ datasource db {
 }
 
 model User {
-  id              String    @id @default(uuid())
-  email           String    @unique
+  id              String           @id @default(uuid())
+  email           String           @unique
   passwordHash    String
   name            String
   avatarUrl       String?
-  timezone        String    @default("UTC")
-  weeklyGoals     Json      @default("{}")
-  isSuperAdmin    Boolean   @default(false)
-  isBanned        Boolean   @default(false)
-  createdAt       DateTime  @default(now())
-  timeEntries     TimeEntry[]
+  timezone        String           @default("UTC")
+  weeklyGoals     Json             @default("{}")
+  isSuperAdmin    Boolean          @default(false)
+  isBanned        Boolean          @default(false)
+  createdAt       DateTime         @default(now())
+  aiInsights      AiInsight[]
   moodLogs        MoodLog[]
   recurringTasks  RecurringTask[]
-  aiInsights      AiInsight[]
+  timeEntries     TimeEntry[]
   weeklySnapshots WeeklySnapshot[]
 }
 
@@ -39,8 +39,8 @@ model TimeEntry {
   recurringTaskId String?
   moodScore       Int            @default(3)
   createdAt       DateTime       @default(now())
-  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   recurringTask   RecurringTask? @relation(fields: [recurringTaskId], references: [id])
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model MoodLog {
@@ -51,19 +51,20 @@ model MoodLog {
   note      String?
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId, date])
 }
 
 model RecurringTask {
-  id              String     @id @default(uuid())
+  id              String      @id @default(uuid())
   userId          String
   title           String
   category        Category
   defaultDuration Int
   daysOfWeek      Int[]
-  isActive        Boolean    @default(true)
-  createdAt       DateTime   @default(now())
-  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isActive        Boolean     @default(true)
+  createdAt       DateTime    @default(now())
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   timeEntries     TimeEntry[]
 }
 
