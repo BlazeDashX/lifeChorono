@@ -11,6 +11,8 @@ import AppLayout from '@/components/layout/AppLayout';
 import AiInsights from '@/components/dashboard/AiInsights';
 import { DashboardSkeleton } from '@/components/ui/Skeleton';
 import TopBar from '@/components/layout/TopBar';
+import { MoodBanner } from '@/components/mood/MoodBanner';
+import { MoodModal } from '@/components/mood/MoodModal';
 
 async function fetchDashboard(date: string) {
   const res = await api.get(`/dashboard/week?weekStart=${date}`);
@@ -49,17 +51,16 @@ export default function DashboardPage() {
 
   const streakColors = {
     green: { bg: 'rgba(16,185,129,0.15)', color: '#10B981' },
-    amber: { bg: 'rgba(245,158,11,0.15)',  color: '#F59E0B' },
-    none:  { bg: 'rgba(100,116,139,0.15)', color: '#64748B' },
+    amber: { bg: 'rgba(245,158,11,0.15)', color: '#F59E0B' },
+    none: { bg: 'rgba(100,116,139,0.15)', color: '#64748B' },
   }[data.streakStatus as 'green' | 'amber' | 'none'] ?? { bg: 'rgba(100,116,139,0.15)', color: '#64748B' };
 
   const streakTooltip = {
     green: 'Logged today ✓',
     amber: 'Not logged today yet',
-    none:  'No streak',
+    none: 'No streak',
   }[data.streakStatus as string] ?? '';
 
-  // Top bar right slot — week range + streak
   const topBarRight = (
     <div className="flex items-center gap-3">
       <span className="text-xs hidden sm:block" style={{ color: '#9896B8' }}>
@@ -87,7 +88,9 @@ export default function DashboardPage() {
 
       <div className="max-w-3xl mx-auto p-4 pb-28 md:pb-8 space-y-5">
 
-        {/* Today's Summary */}
+        <MoodModal />
+        <MoodBanner />
+
         <TodaySummary todaySummary={data.todaySummary} />
 
         {/* 168 Hour Donut */}
@@ -134,10 +137,10 @@ export default function DashboardPage() {
                   fontSize: '12px',
                 }}
               />
-              <Bar dataKey="productive"  stackId="a" fill="#10B981" radius={[0,0,4,4]} />
-              <Bar dataKey="leisure"     stackId="a" fill="#F59E0B" />
+              <Bar dataKey="productive" stackId="a" fill="#10B981" radius={[0, 0, 4, 4]} />
+              <Bar dataKey="leisure" stackId="a" fill="#F59E0B" />
               <Bar dataKey="restoration" stackId="a" fill="#06B6D4" />
-              <Bar dataKey="neutral"     stackId="a" fill="#64748B" radius={[4,4,0,0]} />
+              <Bar dataKey="neutral" stackId="a" fill="#64748B" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
