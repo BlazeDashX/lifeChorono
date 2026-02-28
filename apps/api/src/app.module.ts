@@ -9,6 +9,7 @@ import { RecurringModule } from './recurring/recurring.module';
 import { AiInsightsModule } from './ai-insights/ai-insights.module';
 import { UsersModule } from './users/users.module';
 import { LifetimeModule } from './lifetime/lifetime.module';
+import { MoodLogModule } from './mood-log/mood-log.module';
 import { SnapshotsModule } from './snapshot/snapshots.module';
 
 @Module({
@@ -23,6 +24,7 @@ import { SnapshotsModule } from './snapshot/snapshots.module';
     AiInsightsModule,
     UsersModule,
     LifetimeModule,
+    MoodLogModule,
     SnapshotsModule,
   ],
 })
