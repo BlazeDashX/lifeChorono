@@ -7,21 +7,23 @@ datasource db {
 }
 
 model User {
-  id              String           @id @default(uuid())
-  email           String           @unique
+  id              String               @id @default(uuid())
+  email           String               @unique
   passwordHash    String
   name            String
   avatarUrl       String?
-  timezone        String           @default("UTC")
-  weeklyGoals     Json             @default("{}")
-  isSuperAdmin    Boolean          @default(false)
-  isBanned        Boolean          @default(false)
-  createdAt       DateTime         @default(now())
+  timezone        String               @default("UTC")
+  weeklyGoals     Json                 @default("{}")
+  isSuperAdmin    Boolean              @default(false)
+  isBanned        Boolean              @default(false)
+  createdAt       DateTime             @default(now())
   aiInsights      AiInsight[]
   moodLogs        MoodLog[]
   recurringTasks  RecurringTask[]
   timeEntries     TimeEntry[]
   weeklySnapshots WeeklySnapshot[]
+  capsuleAnswers  TimeCapsuleAnswers?
+  capsuleLetters  CapsuleLetter[]
 }
 
 model TimeEntry {
@@ -96,6 +98,37 @@ model WeeklySnapshot {
   @@unique([userId, weekStart])
 }
 
+// ── NEW: Sealed Day-1 answers from onboarding ─────────────────────────────────
+// Written once. Never shown to the user until their 3-month letter arrives.
+// Silently ignored on subsequent writes — never overwritten.
+model TimeCapsuleAnswers {
+  id         String   @id @default(uuid())
+  userId     String   @unique             // one set per user, enforced at DB level
+  whoAreYou  String                       // "Who are you right now, in this moment?"
+  whoWillYou String                       // "Who do you want to be in 3 months?"
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ── NEW: Generated time capsule letters ───────────────────────────────────────
+// One row per letter per user. Frontend reads from this table.
+// readAt = null means the letter has not been opened yet.
+model CapsuleLetter {
+  id          String      @id @default(uuid())
+  userId      String
+  type        CapsuleType                 // which letter in the sequence
+  subject     String                      // email subject line (also shown in UI)
+  body        String                      // full letter prose — plain text, no markdown
+  moodArc     String?                     // the mood narrative paragraph fed to Gemini
+  generatedAt DateTime    @default(now())
+  readAt      DateTime?                   // null = unread; set when user opens it
+  emailSentAt DateTime?                   // null = not yet emailed
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
+  @@index([userId, readAt])
+}
+
 model AdminContent {
   id          String      @id @default(uuid())
   contentType ContentType
@@ -130,6 +163,14 @@ enum Category {
   leisure
   restoration
   neutral
+}
+
+// ── NEW enum ──────────────────────────────────────────────────────────────────
+enum CapsuleType {
+  three_month
+  six_month
+  one_year
+  two_year
 }
 
 enum ContentType {
