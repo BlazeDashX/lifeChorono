@@ -5,11 +5,15 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CapsuleLetterService } from './capsule-letter.service';
+import { PrismaService } from '../prisma/prisma.service';
 
 @UseGuards(JwtAuthGuard)
 @Controller('capsule')
 export class CapsuleController {
-  constructor(private readonly capsule: CapsuleLetterService) {}
+  constructor(
+    private readonly capsule: CapsuleLetterService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   /**
    * POST /capsule/answers
