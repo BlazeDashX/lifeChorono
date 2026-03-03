@@ -1,153 +1,216 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+// FILE: apps/web/src/components/QuickAddModal.tsx
+
+import { useState, useEffect, useRef } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createEntry } from '@/lib/api-entries';
 import { format } from 'date-fns';
+import { X, Check, Zap, Waves, Moon, Minus } from 'lucide-react';
+import { useToast } from '@/lib/toast';
 
-export default function QuickAddModal({ 
-  isOpen, 
-  onClose, 
-  selectedDate,
-  prefillData
-}: { 
-  isOpen: boolean; 
-  onClose: () => void;
-  selectedDate: Date;
-  prefillData?: any;
+const CATS = {
+  productive:  { color:'#10B981', glow:'rgba(16,185,129,0.25)',  activeBg:'rgba(16,185,129,0.12)', label:'Productive',  Icon:Zap   },
+  leisure:     { color:'#F59E0B', glow:'rgba(245,158,11,0.25)',  activeBg:'rgba(245,158,11,0.12)', label:'Leisure',     Icon:Waves },
+  restoration: { color:'#06B6D4', glow:'rgba(6,182,212,0.25)',   activeBg:'rgba(6,182,212,0.12)',  label:'Restoration', Icon:Moon  },
+  neutral:     { color:'#64748B', glow:'rgba(100,116,139,0.2)',  activeBg:'rgba(100,116,139,0.1)', label:'Neutral',     Icon:Minus },
+} as const;
+type Cat = keyof typeof CATS;
+
+export default function QuickAddModal({ isOpen, onClose, selectedDate, prefillData }: {
+  isOpen:boolean; onClose:()=>void; selectedDate:Date; prefillData?:any;
 }) {
-  const queryClient = useQueryClient();
-  const dateStr = format(selectedDate, 'yyyy-MM-dd');
-  
-  const [title, setTitle] = useState(prefillData?.title || '');
-  const [category, setCategory] = useState<'productive' | 'leisure' | 'restoration' | 'neutral' | null>(prefillData?.category || null);
+  const qc      = useQueryClient();
+  const { toast } = useToast();
+  const ds      = format(selectedDate,'yyyy-MM-dd');
+  const titleRef = useRef<HTMLInputElement>(null);
 
-  // Update form when prefillData changes
+  const [title,    setTitle]    = useState('');
+  const [cat,      setCat]      = useState<Cat|null>(null);
+  const [start,    setStart]    = useState('09:00');
+  const [end,      setEnd]      = useState('10:00');
+  const [note,     setNote]     = useState('');
+  const [showNote, setShowNote] = useState(false);
+
   useEffect(() => {
+    if (!isOpen) return;
     if (prefillData) {
-      setTitle(prefillData.title || '');
-      setCategory(prefillData.category || null);
-      
-      // Update times for recurring task
-      if (prefillData.defaultDuration) {
-        const now = new Date();
-        const start = new Date(now);
-        start.setHours(9, 0, 0, 0);
-        const end = new Date(start);
-        end.setMinutes(start.getMinutes() + prefillData.defaultDuration);
-        
-        const startMinutes = start.getHours() * 60 + start.getMinutes();
-        const endMinutes = end.getHours() * 60 + end.getMinutes();
-        
-        setTimeStart(`${String(Math.floor(startMinutes / 60)).padStart(2, '0')}:${String(startMinutes % 60).padStart(2, '0')}`);
-        setTimeEnd(`${String(Math.floor(endMinutes / 60)).padStart(2, '0')}:${String(endMinutes % 60).padStart(2, '0')}`);
-      }
+      setTitle(prefillData.title||'');
+      setCat(prefillData.category||null);
     } else {
-      // Reset form when no prefillData
-      setTitle('');
-      setCategory(null);
-      setTimeStart('09:00');
-      setTimeEnd('10:00');
+      const n = new Date(), h = n.getHours(), m = n.getMinutes()>=30?30:0;
+      setStart(`${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}`);
+      setEnd(`${((m===30?(h+1):h)%24).toString().padStart(2,'0')}:${m===30?'00':'30'}`);
+      setTitle(''); setCat(null); setNote(''); setShowNote(false);
     }
-  }, [prefillData]);
+    setTimeout(()=>titleRef.current?.focus(),80);
+  }, [isOpen, prefillData]);
 
-  const [timeStart, setTimeStart] = useState('09:00');
-  const [timeEnd, setTimeEnd] = useState('10:00');
-
-  const mutation = useMutation({
-    mutationFn: createEntry,
-    onMutate: async (newEntry) => {
-      await queryClient.cancelQueries({ queryKey: ['entries', dateStr] });
-      const previousEntries = queryClient.getQueryData(['entries', dateStr]);
-      
-      // Optimistic update: instantly show the entry on the timeline
-      queryClient.setQueryData(['entries', dateStr], (old: any) => [...(old || []), {
-        ...newEntry,
-        id: 'temp-id-' + Date.now(),
-        durationMinutes: 60, // Rough estimate for optimistic UI
-      }]);
-
-      return { previousEntries };
-    },
-    onError: (err, newEntry, context) => {
-      queryClient.setQueryData(['entries', dateStr], context?.previousEntries);
-      alert('Failed to save entry');
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['entries', dateStr] });
-      onClose();
-      // Reset form
-      setTitle('');
-      setCategory(null);
-    },
+  useEffect(() => {
+    if (!isOpen) return;
+    const handler = (e:KeyboardEvent) => {
+      if (e.key==='Escape') handleClose();
+      if ((e.metaKey||e.ctrlKey)&&e.key==='Enter') handleSubmit();
+    };
+    window.addEventListener('keydown',handler);
+    return ()=>window.removeEventListener('keydown',handler);
   });
+
+  const { mutate, isPending } = useMutation({
+    mutationFn: createEntry,
+    onMutate: async newEntry => {
+      await qc.cancelQueries({queryKey:['entries',ds]});
+      const prev = qc.getQueryData(['entries',ds]);
+      qc.setQueryData(['entries',ds],(old:any)=>[...(old||[]),{...newEntry,id:'temp-'+Date.now(),durationMinutes:60}]);
+      return { prev };
+    },
+    onError: (_,__,ctx) => { qc.setQueryData(['entries',ds],ctx?.prev); toast('Could not add entry.','error'); },
+    onSettled: () => { qc.invalidateQueries({queryKey:['entries',ds]}); qc.invalidateQueries({queryKey:['dashboard']}); },
+    onSuccess: () => { toast('Added to your day.','success'); handleClose(); },
+  });
+
+  const handleClose = () => {
+    onClose();
+    setTimeout(()=>{ setTitle(''); setCat(null); setNote(''); setShowNote(false); },200);
+  };
+  const handleSubmit = () => {
+    if (!title.trim()||!cat) return;
+    mutate({ title:title.trim(), category:cat, startTime:`${ds}T${start}:00.000Z`, endTime:`${ds}T${end}:00.000Z`, note:note.trim()||undefined, ...(prefillData?.id&&{recurringTaskId:prefillData.id}) });
+  };
 
   if (!isOpen) return null;
 
+  const ac     = cat ? CATS[cat] : null;
+  const canSave = !!title.trim() && !!cat;
+
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50 p-4">
-      <div className="bg-surface w-full max-w-md rounded-2xl p-6 flex flex-col gap-4 animate-in slide-in-from-bottom-10">
-        <h2 className="text-xl font-bold">Log Time</h2>
-        
-        <div className="grid grid-cols-2 gap-2">
-          {['productive', 'leisure', 'restoration', 'neutral'].map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setCategory(cat as any)}
-              className={`p-3 rounded-lg capitalize font-medium border ${
-                category === cat ? `border-${cat} bg-${cat}/20` : 'border-slate-800 bg-slate-900/50'
-              }`}
-            >
-              {cat}
+    <>
+      {/* Backdrop */}
+      <div className="fixed inset-0 z-40" style={{ backgroundColor:'rgba(0,0,0,0.7)', backdropFilter:'blur(8px)' }} onClick={handleClose} />
+
+      {/* Modal — always centered */}
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div
+          className="w-full rounded-2xl overflow-hidden"
+          style={{
+            maxWidth:'420px',
+            backgroundColor:'#080812',
+            borderTop:`1px solid ${ac?ac.color+'30':'#16162A'}`,
+            borderLeft:`1px solid ${ac?ac.color+'18':'#16162A'}`,
+            borderRight:`1px solid ${ac?ac.color+'18':'#16162A'}`,
+            borderBottom:`1px solid ${ac?ac.color+'18':'#16162A'}`,
+            boxShadow: ac
+              ? `0 0 60px ${ac.glow}, 0 32px 80px rgba(0,0,0,0.7)`
+              : '0 32px 80px rgba(0,0,0,0.7)',
+            transition:'border-color 0.25s,box-shadow 0.25s',
+          }}
+        >
+          {/* Color strip */}
+          <div className="h-0.5 w-full transition-all duration-300"
+            style={{ background:ac?`linear-gradient(90deg,transparent,${ac.color}70,transparent)`:'transparent' }} />
+
+          <div className="p-5 space-y-4">
+            {/* Header */}
+            <div className="flex items-center justify-between">
+              <span className="text-xs uppercase tracking-widest font-medium" style={{ color:'#3A3A58' }}>
+                What did this time become?
+              </span>
+              <button onClick={handleClose} className="p-1 rounded-lg transition-colors" style={{ color:'#3A3A58' }}
+                onMouseEnter={e=>((e.currentTarget as HTMLElement).style.color='#9896B8')}
+                onMouseLeave={e=>((e.currentTarget as HTMLElement).style.color='#3A3A58')}>
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Title */}
+            <input
+              ref={titleRef}
+              type="text"
+              value={title}
+              onChange={e=>setTitle(e.target.value)}
+              placeholder="Name this time..."
+              className="w-full bg-transparent text-xl font-semibold focus:outline-none placeholder:font-normal"
+              style={{ color:'#F1F0FF', caretColor:ac?.color??'#7C3AED' }}
+            />
+
+            {/* Category pills */}
+            <div className="grid grid-cols-4 gap-2">
+              {(Object.entries(CATS) as [Cat, typeof CATS[Cat]][]).map(([key,cfg]) => {
+                const { Icon } = cfg;
+                const active = cat===key;
+                return (
+                  <button key={key} onClick={()=>setCat(active?null:key)}
+                    className="flex flex-col items-center gap-2 py-3 rounded-xl text-xs font-medium transition-all duration-200"
+                    style={{
+                      backgroundColor: active ? cfg.activeBg : '#0E0E1C',
+                      borderTop:    `1px solid ${active?cfg.color+'50':'#1A1A2E'}`,
+                      borderLeft:   `1px solid ${active?cfg.color+'50':'#1A1A2E'}`,
+                      borderRight:  `1px solid ${active?cfg.color+'50':'#1A1A2E'}`,
+                      borderBottom: `1px solid ${active?cfg.color+'50':'#1A1A2E'}`,
+                      color:    active ? cfg.color : '#4A4A6A',
+                      boxShadow: active ? `0 0 16px ${cfg.glow}` : 'none',
+                      transform: active ? 'scale(1.04)' : 'scale(1)',
+                    }}>
+                    <Icon className="w-4 h-4" />
+                    <span>{cfg.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Time pickers */}
+            <div className="grid grid-cols-2 gap-3">
+              {/* Start */}
+              <div className="rounded-xl p-3 space-y-1" style={{ backgroundColor:'#0E0E1C', border:'1px solid #1A1A2E' }}>
+                <p className="text-xs font-medium uppercase tracking-wider" style={{ color:'#3A3A58' }}>Start</p>
+                <input type="time" value={start} onChange={e=>setStart(e.target.value)}
+                  className="w-full bg-transparent focus:outline-none font-mono font-bold text-lg"
+                  style={{ color:'#F1F0FF', colorScheme:'dark' }} />
+              </div>
+              {/* End */}
+              <div className="rounded-xl p-3 space-y-1" style={{ backgroundColor:'#0E0E1C', border:'1px solid #1A1A2E' }}>
+                <p className="text-xs font-medium uppercase tracking-wider" style={{ color:'#3A3A58' }}>End</p>
+                <input type="time" value={end} onChange={e=>setEnd(e.target.value)}
+                  className="w-full bg-transparent focus:outline-none font-mono font-bold text-lg"
+                  style={{ color:'#F1F0FF', colorScheme:'dark' }} />
+              </div>
+            </div>
+
+            {/* Note */}
+            {showNote ? (
+              <input autoFocus type="text" value={note} onChange={e=>setNote(e.target.value)}
+                placeholder="A note, if it matters..."
+                className="w-full rounded-xl px-3 py-2.5 text-sm focus:outline-none"
+                style={{ backgroundColor:'#0E0E1C', border:'1px solid #1A1A2E', color:'#6B6B8A' }}
+                onFocus={e=>(e.target.style.borderColor=ac?.color??'#7C3AED')}
+                onBlur={e=>(e.target.style.borderColor='#1A1A2E')} />
+            ) : (
+              <button onClick={()=>setShowNote(true)} className="text-xs transition-colors" style={{ color:'#252538' }}
+                onMouseEnter={e=>((e.currentTarget as HTMLElement).style.color='#4A4A6A')}
+                onMouseLeave={e=>((e.currentTarget as HTMLElement).style.color='#252538')}>
+                + Add a note
+              </button>
+            )}
+
+            {/* Save button */}
+            <button onClick={handleSubmit} disabled={!canSave||isPending}
+              className="w-full py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all duration-250 disabled:opacity-25"
+              style={{
+                background: ac
+                  ? `linear-gradient(135deg,${ac.color},${ac.color}CC)`
+                  : 'linear-gradient(135deg,#7C3AED,#6D28D9)',
+                color:'#fff',
+                boxShadow: canSave&&ac ? `0 0 24px ${ac.glow}` : 'none',
+              }}>
+              {isPending
+                ? <span className="animate-pulse">Recording…</span>
+                : <><Check className="w-4 h-4" />Record this time</>}
             </button>
-          ))}
-        </div>
 
-        <input 
-          autoFocus
-          type="text" 
-          placeholder="What are you doing?" 
-          value={title} 
-          onChange={(e) => setTitle(e.target.value)}
-          className="bg-slate-900 border border-slate-800 p-3 rounded-lg text-white mt-2"
-        />
-
-        <div className="flex gap-4">
-          <input 
-            type="time" 
-            value={timeStart} 
-            onChange={(e) => setTimeStart(e.target.value)}
-            className="flex-1 bg-slate-900 border border-slate-800 p-3 rounded-lg text-white"
-          />
-          <input 
-            type="time" 
-            value={timeEnd} 
-            onChange={(e) => setTimeEnd(e.target.value)}
-            className="flex-1 bg-slate-900 border border-slate-800 p-3 rounded-lg text-white"
-          />
-        </div>
-
-        <div className="flex gap-3 mt-4">
-          <button onClick={onClose} className="flex-1 p-3 rounded-lg bg-slate-800 text-white font-medium">Cancel</button>
-          <button 
-            disabled={!title || !category}
-            onClick={() => {
-              const entryData = {
-                title,
-                category,
-                startTime: `${dateStr}T${timeStart}:00Z`,
-                endTime: `${dateStr}T${timeEnd}:00Z`,
-                // Link to recurring task if this came from a suggestion
-                ...(prefillData?.id && { recurringTaskId: prefillData.id })
-              };
-              mutation.mutate(entryData);
-            }} 
-            className="flex-1 p-3 rounded-lg bg-brand hover:bg-brand-light text-white font-medium disabled:opacity-50"
-          >
-            Save
-          </button>
+            <p className="text-xs text-center" style={{ color:'#141422' }}>⌘↵ to record</p>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
