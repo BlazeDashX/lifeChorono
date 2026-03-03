@@ -9,9 +9,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import AppLayout from '@/components/layout/AppLayout';
 import TopBar from '@/components/layout/TopBar';
+import Link from 'next/link';
 import {
   Save, Info, Heart, Plus, Trash2, Pencil, Check, X,
-  Zap, Waves, Moon, Minus, ToggleLeft, ToggleRight,
+  Zap, Waves, Moon, Minus, ToggleLeft, ToggleRight, Calendar, ChevronRight,
 } from 'lucide-react';
 import { useToast } from '@/lib/toast';
 
@@ -315,6 +316,25 @@ export default function SettingsPage() {
             </div>
           </div>
         </div>
+
+        {/* ── Your Routine ── */}
+        <Link href="/routine"
+          className="flex items-center gap-4 p-5 rounded-xl transition-all group"
+          style={CARD}
+          onMouseEnter={e=>((e.currentTarget as HTMLElement).style.borderColor='rgba(124,58,237,0.3)')}
+          onMouseLeave={e=>((e.currentTarget as HTMLElement).style.borderColor='#141428')}>
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+            style={{ backgroundColor:'rgba(124,58,237,0.12)', border:'1px solid rgba(124,58,237,0.2)' }}>
+            <Calendar className="w-5 h-5" style={{ color:'#A78BFA' }}/>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold" style={{ color:'#F1F0FF' }}>Your Routine</p>
+            <p className="text-xs mt-0.5" style={{ color:'#4A4A6A' }}>
+              Schedule templates · ghost entries · auto-fill your day
+            </p>
+          </div>
+          <ChevronRight className="w-4 h-4 shrink-0 transition-transform group-hover:translate-x-0.5" style={{ color:'#3A3A5A' }}/>
+        </Link>
 
         {/* ── Your Regulars ── */}
         <div ref={regularsRef} id="regulars" className="p-6 rounded-xl space-y-4" style={CARD}>

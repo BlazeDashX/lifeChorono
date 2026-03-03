@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
-
 import { AuthModule }        from './auth/auth.module';
 import { PrismaModule }      from './prisma/prisma.module';
 import { TimeEntriesModule } from './time-entries/time-entries.module';
@@ -12,7 +11,8 @@ import { UsersModule }       from './users/users.module';
 import { LifetimeModule }    from './lifetime/lifetime.module';
 import { MoodLogModule }     from './mood-log/mood-log.module';
 import { SnapshotsModule }   from './snapshot/snapshots.module';
-import { CapsuleModule }     from './capsule/capsule.module'; 
+import { CapsuleModule }     from './capsule/capsule.module';
+import { ScheduleTemplatesModule } from './schedule-templates/schedule-templates.module'; 
 
 @Module({
   imports: [
@@ -28,7 +28,8 @@ import { CapsuleModule }     from './capsule/capsule.module';
     LifetimeModule,
     MoodLogModule,
     SnapshotsModule,
-    CapsuleModule,            
+    CapsuleModule,
+    ScheduleTemplatesModule,            
   ],
 })
 export class AppModule {}
