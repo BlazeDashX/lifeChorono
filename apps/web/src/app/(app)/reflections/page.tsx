@@ -1,4 +1,4 @@
-
+'use client';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
@@ -42,15 +42,15 @@ function LetterBody({ body }: { body: string }) {
 
 const TYPE_LABEL: Record<string, string> = {
   three_month: '3 Months',
-  six_month:   '6 Months',
-  one_year:    '1 Year',
-  two_year:    '2 Years',
+  six_month: '6 Months',
+  one_year: '1 Year',
+  two_year: '2 Years',
 };
 
 // ── Letter card ─────────────────────────────────────────────────────────────
 function LetterCard({ letter }: { letter: CapsuleLetter }) {
-  const queryClient               = useQueryClient();
-  const [expanded, setExpanded]   = useState(false);
+  const queryClient = useQueryClient();
+  const [expanded, setExpanded] = useState(false);
 
   const { mutate: markRead } = useMutation({
     mutationFn: (id: string) =>
@@ -86,8 +86,8 @@ function LetterCard({ letter }: { letter: CapsuleLetter }) {
           ((e.currentTarget as HTMLElement).style.borderColor = 'rgba(124,58,237,0.3)')
         }
         onMouseLeave={e =>
-          ((e.currentTarget as HTMLElement).style.borderColor =
-            isUnread ? 'rgba(124,58,237,0.45)' : expanded ? 'rgba(124,58,237,0.2)' : '#1A1A2E')
+        ((e.currentTarget as HTMLElement).style.borderColor =
+          isUnread ? 'rgba(124,58,237,0.45)' : expanded ? 'rgba(124,58,237,0.2)' : '#1A1A2E')
         }
       >
         <div className="flex items-start justify-between gap-3">
@@ -98,7 +98,7 @@ function LetterCard({ letter }: { letter: CapsuleLetter }) {
                 className="text-xs px-2 py-0.5 rounded-full"
                 style={{
                   backgroundColor: 'rgba(124,58,237,0.15)',
-                  color:           '#A78BFA',
+                  color: '#A78BFA',
                 }}
               >
                 {TYPE_LABEL[letter.type] ?? letter.type}
@@ -108,7 +108,7 @@ function LetterCard({ letter }: { letter: CapsuleLetter }) {
                   className="text-xs px-2 py-0.5 rounded-full font-medium"
                   style={{
                     backgroundColor: 'rgba(124,58,237,0.3)',
-                    color:           '#C4B5FD',
+                    color: '#C4B5FD',
                   }}
                 >
                   Unread
@@ -131,7 +131,7 @@ function LetterCard({ letter }: { letter: CapsuleLetter }) {
           <span
             className="text-xs shrink-0 mt-1 transition-transform"
             style={{
-              color:     '#4A4A6A',
+              color: '#4A4A6A',
               transform: expanded ? 'rotate(90deg)' : 'none',
             }}
           >
@@ -146,9 +146,9 @@ function LetterCard({ letter }: { letter: CapsuleLetter }) {
           className="px-6 py-5 space-y-4"
           style={{
             backgroundColor: '#080810',
-            border:          '1px solid rgba(124,58,237,0.15)',
-            borderTop:       'none',
-            borderRadius:    '0 0 12px 12px',
+            border: '1px solid rgba(124,58,237,0.15)',
+            borderTop: 'none',
+            borderRadius: '0 0 12px 12px',
           }}
         >
           {/* Thin purple divider */}
@@ -173,7 +173,7 @@ function LetterCard({ letter }: { letter: CapsuleLetter }) {
 export default function ReflectionsPage() {
   const { data: letters = [], isLoading } = useQuery<CapsuleLetter[]>({
     queryKey: ['capsule', 'letters'],
-    queryFn:  () => api.get('/capsule/letters').then(r => r.data),
+    queryFn: () => api.get('/capsule/letters').then(r => r.data),
   });
 
   const unread = letters.filter(l => !l.readAt).length;
@@ -203,8 +203,8 @@ export default function ReflectionsPage() {
               className="text-xs px-2.5 py-1 rounded-full font-medium mt-1"
               style={{
                 backgroundColor: 'rgba(124,58,237,0.2)',
-                color:           '#A78BFA',
-                border:          '1px solid rgba(124,58,237,0.3)',
+                color: '#A78BFA',
+                border: '1px solid rgba(124,58,237,0.3)',
               }}
             >
               {unread} unread

@@ -12,10 +12,10 @@ import { Plus, Settings, ChevronRight, Zap, Waves, Moon, Minus } from 'lucide-re
 import Link from 'next/link';
 
 const CAT = {
-  productive:  { color: '#10B981', bg: 'rgba(16,185,129,0.08)',  glow: 'rgba(16,185,129,0.2)',  Icon: Zap   },
-  leisure:     { color: '#F59E0B', bg: 'rgba(245,158,11,0.08)',  glow: 'rgba(245,158,11,0.2)',  Icon: Waves },
-  restoration: { color: '#06B6D4', bg: 'rgba(6,182,212,0.08)',   glow: 'rgba(6,182,212,0.2)',   Icon: Moon  },
-  neutral:     { color: '#64748B', bg: 'rgba(100,116,139,0.06)', glow: 'rgba(100,116,139,0.15)',Icon: Minus },
+  productive: { color: '#10B981', bg: 'rgba(16,185,129,0.08)', glow: 'rgba(16,185,129,0.2)', Icon: Zap },
+  leisure: { color: '#F59E0B', bg: 'rgba(245,158,11,0.08)', glow: 'rgba(245,158,11,0.2)', Icon: Waves },
+  restoration: { color: '#06B6D4', bg: 'rgba(6,182,212,0.08)', glow: 'rgba(6,182,212,0.2)', Icon: Moon },
+  neutral: { color: '#64748B', bg: 'rgba(100,116,139,0.06)', glow: 'rgba(100,116,139,0.15)', Icon: Minus },
 } as const;
 type Cat = keyof typeof CAT;
 
@@ -27,28 +27,28 @@ const fmtDur = (m: number) => {
 const TIME_PRESETS = () => {
   const h = new Date().getHours();
   if (h < 10) return [
-    { title: 'Morning routine',  category: 'restoration' as Cat, defaultDuration: 30  },
-    { title: 'Deep work',        category: 'productive'  as Cat, defaultDuration: 90  },
-    { title: 'Breakfast',        category: 'restoration' as Cat, defaultDuration: 20  },
-    { title: 'Exercise',         category: 'restoration' as Cat, defaultDuration: 45  },
+    { title: 'Morning routine', category: 'restoration' as Cat, defaultDuration: 30 },
+    { title: 'Deep work', category: 'productive' as Cat, defaultDuration: 90 },
+    { title: 'Breakfast', category: 'restoration' as Cat, defaultDuration: 20 },
+    { title: 'Exercise', category: 'restoration' as Cat, defaultDuration: 45 },
   ];
   if (h < 14) return [
-    { title: 'Deep work',        category: 'productive'  as Cat, defaultDuration: 90  },
-    { title: 'Lunch break',      category: 'restoration' as Cat, defaultDuration: 45  },
-    { title: 'Email & messages', category: 'neutral'     as Cat, defaultDuration: 30  },
-    { title: 'Meeting',          category: 'productive'  as Cat, defaultDuration: 60  },
+    { title: 'Deep work', category: 'productive' as Cat, defaultDuration: 90 },
+    { title: 'Lunch break', category: 'restoration' as Cat, defaultDuration: 45 },
+    { title: 'Email & messages', category: 'neutral' as Cat, defaultDuration: 30 },
+    { title: 'Meeting', category: 'productive' as Cat, defaultDuration: 60 },
   ];
   if (h < 18) return [
-    { title: 'Afternoon focus',  category: 'productive'  as Cat, defaultDuration: 60  },
-    { title: 'Walk outside',     category: 'restoration' as Cat, defaultDuration: 30  },
-    { title: 'Admin',            category: 'neutral'     as Cat, defaultDuration: 30  },
-    { title: 'Reading',          category: 'leisure'     as Cat, defaultDuration: 45  },
+    { title: 'Afternoon focus', category: 'productive' as Cat, defaultDuration: 60 },
+    { title: 'Walk outside', category: 'restoration' as Cat, defaultDuration: 30 },
+    { title: 'Admin', category: 'neutral' as Cat, defaultDuration: 30 },
+    { title: 'Reading', category: 'leisure' as Cat, defaultDuration: 45 },
   ];
   return [
-    { title: 'Dinner',           category: 'restoration' as Cat, defaultDuration: 45  },
-    { title: 'Wind down',        category: 'leisure'     as Cat, defaultDuration: 60  },
-    { title: 'Reading',          category: 'leisure'     as Cat, defaultDuration: 45  },
-    { title: 'Sleep',            category: 'restoration' as Cat, defaultDuration: 480 },
+    { title: 'Dinner', category: 'restoration' as Cat, defaultDuration: 45 },
+    { title: 'Wind down', category: 'leisure' as Cat, defaultDuration: 60 },
+    { title: 'Reading', category: 'leisure' as Cat, defaultDuration: 45 },
+    { title: 'Sleep', category: 'restoration' as Cat, defaultDuration: 480 },
   ];
 };
 
@@ -67,12 +67,12 @@ function Chip({ task, onSelect, badge }: {
       className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left transition-all duration-150"
       style={{
         backgroundColor: hov ? c.bg : '#0A0A16',
-        borderTop:    `1px solid ${hov ? c.color + '30' : '#111120'}`,
-        borderLeft:   `1px solid ${hov ? c.color + '30' : '#111120'}`,
-        borderRight:  `1px solid ${hov ? c.color + '30' : '#111120'}`,
+        borderTop: `1px solid ${hov ? c.color + '30' : '#111120'}`,
+        borderLeft: `1px solid ${hov ? c.color + '30' : '#111120'}`,
+        borderRight: `1px solid ${hov ? c.color + '30' : '#111120'}`,
         borderBottom: `1px solid ${hov ? c.color + '30' : '#111120'}`,
-        transform:    hov ? 'translateX(2px)' : 'translateX(0)',
-        boxShadow:    hov ? `0 0 12px ${c.glow}` : 'none',
+        transform: hov ? 'translateX(2px)' : 'translateX(0)',
+        boxShadow: hov ? `0 0 12px ${c.glow}` : 'none',
       }}
     >
       {/* Category dot */}
@@ -94,9 +94,9 @@ function Chip({ task, onSelect, badge }: {
       {/* Badge or plus */}
       {badge
         ? <span className="text-xs px-1.5 py-0.5 rounded-md shrink-0 font-medium"
-            style={{ backgroundColor: c.color + '18', color: c.color }}>{badge}</span>
+          style={{ backgroundColor: c.color + '18', color: c.color }}>{badge}</span>
         : <Plus className="w-3 h-3 shrink-0 transition-opacity duration-150"
-            style={{ color: c.color, opacity: hov ? 0.85 : 0.25 }} />
+          style={{ color: c.color, opacity: hov ? 0.85 : 0.25 }} />
       }
     </button>
   );
@@ -132,9 +132,9 @@ export default function RightPanel({
     staleTime: 60_000,
   });
 
-  const active      = (regulars as any[]).filter(r => r.isActive);
-  const suggIds     = new Set((suggestions as any[]).map((s: any) => s.id));
-  const others      = active.filter(r => !suggIds.has(r.id));
+  const active = (regulars as any[]).filter(r => r.isActive);
+  const suggIds = new Set((suggestions as any[]).map((s: any) => s.id));
+  const others = active.filter(r => !suggIds.has(r.id));
   const hasRegulars = (suggestions as any[]).length > 0 || active.length > 0;
 
   return (
@@ -176,8 +176,28 @@ export default function RightPanel({
         </div>
       )}
 
-      {/* Footer: manage link */}
-      <div className="mt-auto pt-3" style={{ borderTop: '1px solid #0A0A16' }}>
+      {/* Footer links */}
+      <div className="mt-auto pt-3 space-y-0.5" style={{ borderTop: '1px solid #0A0A16' }}>
+        <Link href="/routine">
+          <div
+            className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs transition-all cursor-pointer"
+            style={{ color: '#2E2E4A' }}
+            onMouseEnter={e => {
+              const el = e.currentTarget as HTMLElement;
+              el.style.color = '#A78BFA';
+              el.style.backgroundColor = 'rgba(124,58,237,0.06)';
+            }}
+            onMouseLeave={e => {
+              const el = e.currentTarget as HTMLElement;
+              el.style.color = '#2E2E4A';
+              el.style.backgroundColor = 'transparent';
+            }}
+          >
+            <Settings className="w-3 h-3" />
+            <span>Manage routine</span>
+            <ChevronRight className="w-3 h-3 ml-auto opacity-50" />
+          </div>
+        </Link>
         <Link href="/settings#regulars">
           <div
             className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs transition-all cursor-pointer"

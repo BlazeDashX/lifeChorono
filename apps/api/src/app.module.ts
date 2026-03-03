@@ -13,6 +13,7 @@ import { MoodLogModule }     from './mood-log/mood-log.module';
 import { SnapshotsModule }   from './snapshot/snapshots.module';
 import { CapsuleModule }     from './capsule/capsule.module';
 import { ScheduleTemplatesModule } from './schedule-templates/schedule-templates.module'; 
+import { routineModule } from './routine/routine.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { ScheduleTemplatesModule } from './schedule-templates/schedule-templates
     SnapshotsModule,
     CapsuleModule,
     ScheduleTemplatesModule,            
+    routineModule,         
   ],
 })
 export class AppModule {}

@@ -1,14 +1,16 @@
+// FILE: apps/api/src/schedule-templates/schedule-templates.service.ts
+
 import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Category, GhostStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTemplateDto, UpdateTemplateDto, ConfirmGhostDto } from './dto/schedule-template.dto';
 
+// ── Constants ────────────────────────────────────────────────────────────────
+const GHOST_CATCHUP_DAYS = 1;    // Day 0 = today, Day 1 = yesterday (still catchup)
+const MIN_TEMPLATE_MINUTES = 180;  // templates smaller than this don't trigger prompt
+const COVERAGE_THRESHOLD = 0.50; // below 50% coverage → prompt eligible
+
 // ── Confidence thresholds ────────────────────────────────────────────────────
-// editCount on this weekday → confidence score
-// 0 edits  = 1.00  (solid ghost   — this is your routine)
-// 1 edit   = 0.85  (medium ghost  — usually happens, slight variation)
-// 2 edits  = 0.70  (light ghost   — often varies)
-// 3+ edits = 0.50  (faint ghost   — uncertain, just a nudge)
 function calcConfidence(editCount: number): number {
   if (editCount === 0) return 1.00;
   if (editCount === 1) return 0.85;
@@ -16,11 +18,33 @@ function calcConfidence(editCount: number): number {
   return 0.50;
 }
 
+// ── Interval union helper ─────────────────────────────────────────────────────
+// Takes [{start, end}] in minutes-since-midnight, returns total covered minutes
+// (deduplicates overlapping intervals so we don't double-count)
+function unionMinutes(intervals: { start: number; end: number }[]): number {
+  if (!intervals.length) return 0;
+  const sorted = [...intervals].sort((a, b) => a.start - b.start);
+  let total = 0;
+  let curStart = sorted[0].start;
+  let curEnd = sorted[0].end;
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i].start <= curEnd) {
+      curEnd = Math.max(curEnd, sorted[i].end);
+    } else {
+      total += curEnd - curStart;
+      curStart = sorted[i].start;
+      curEnd = sorted[i].end;
+    }
+  }
+  total += curEnd - curStart;
+  return total;
+}
+
 @Injectable()
 export class ScheduleTemplatesService {
   constructor(private prisma: PrismaService) { }
 
-  // ── CRUD ─────────────────────────────────────────────────────────────────
+  // ── CRUD ──────────────────────────────────────────────────────────────────
 
   async findAll(userId: string) {
     return this.prisma.scheduleTemplate.findMany({
@@ -36,9 +60,7 @@ export class ScheduleTemplatesService {
       data: {
         ...rest,
         userId,
-        blocks: {
-          create: blocks.map((b, i) => ({ ...b, order: b.order ?? i })),
-        },
+        blocks: { create: blocks.map((b, i) => ({ ...b, order: b.order ?? i })) },
       },
       include: { blocks: { orderBy: { order: 'asc' } } },
     });
@@ -47,18 +69,12 @@ export class ScheduleTemplatesService {
   async update(userId: string, id: string, dto: UpdateTemplateDto) {
     await this.assertOwner(userId, id);
     const { blocks, ...rest } = dto;
-
     return this.prisma.$transaction(async tx => {
       if (blocks) {
-        // Replace all blocks atomically — preserves editCounts/adjustedTimes
-        // for existing blocks by matching on title+startHour+startMinute
         const existing = await tx.templateBlock.findMany({ where: { templateId: id } });
-
         await tx.templateBlock.deleteMany({ where: { templateId: id } });
-
         await tx.templateBlock.createMany({
           data: blocks.map((b, i) => {
-            // Try to preserve exception memory for blocks with the same signature
             const match = existing.find(
               e => e.title === b.title && e.startHour === b.startHour && e.startMinute === b.startMinute
             );
@@ -72,7 +88,6 @@ export class ScheduleTemplatesService {
           }),
         });
       }
-
       return tx.scheduleTemplate.update({
         where: { id },
         data: rest,
@@ -83,7 +98,6 @@ export class ScheduleTemplatesService {
 
   async remove(userId: string, id: string) {
     await this.assertOwner(userId, id);
-    // GhostEntries cascade via templateBlockId FK isn't set — clean up manually
     const template = await this.prisma.scheduleTemplate.findUnique({
       where: { id }, include: { blocks: true },
     });
@@ -97,21 +111,48 @@ export class ScheduleTemplatesService {
     return { success: true };
   }
 
-  // ── Ghost generation ─────────────────────────────────────────────────────
+  // ── Ghost generation ──────────────────────────────────────────────────────
   // GET /schedule-templates/ghosts?date=YYYY-MM-DD
-  // Returns existing PENDING ghosts, or generates them fresh for the day.
-  // Already-confirmed or dismissed ghosts are excluded from the return.
+  //
+  // Day 0 (today):     full ghost display, normal confidence
+  // Day 1 (yesterday): catch-up mode — ghosts still confirmable, slightly faded
+  // Day 2+:            expire any remaining PENDING ghosts, return []
+  // Future dates:      return []
+  //
+  // EXPIRED ≠ DISMISSED:
+  //   DISMISSED = user explicitly said "not today" (intentional signal)
+  //   EXPIRED   = system cleanup, day passed without action (no intent signal)
 
   async getOrCreateGhosts(userId: string, dateString: string) {
     const date = new Date(dateString + 'T00:00:00.000Z');
+    const todayUTC = new Date();
+    todayUTC.setUTCHours(0, 0, 0, 0);
+
+    const daysDiff = Math.round(
+      (todayUTC.getTime() - date.getTime()) / (1000 * 60 * 60 * 24)
+    );
+
+    // Future dates — never generate ghosts
+    if (daysDiff < 0) return [];
+
+    // Day 2+ — expire any PENDING ghosts for this date and return []
+    // Cast needed until `npx prisma generate` adds EXPIRED to the generated enum
+    if (daysDiff > GHOST_CATCHUP_DAYS) {
+      await this.prisma.ghostEntry.updateMany({
+        where: { userId, date, status: GhostStatus.PENDING },
+        data: { status: 'EXPIRED' as any },
+      });
+      return [];
+    }
+
+    // Day 0 or Day 1 — generate ghosts if not already done
     const dayOfWeek = date.getUTCDay();
 
-    // Return existing pending ghosts if already generated
     const existing = await this.prisma.ghostEntry.findMany({
-      where: { userId, date, status: 'PENDING' },
+      where: { userId, date, status: GhostStatus.PENDING },
       orderBy: { startTime: 'asc' },
     });
-    if (existing.length) return existing;
+    if (existing.length) return existing.map(g => ({ ...g, catchup: daysDiff === 1 }));
 
     // Find templates active on this day of week
     const templates = await this.prisma.scheduleTemplate.findMany({
@@ -120,17 +161,14 @@ export class ScheduleTemplatesService {
     });
     if (!templates.length) return [];
 
-    // Find real entries already logged for this date (avoid overlapping ghosts)
+    // Find real entries already logged — skip overlapping blocks
     const realEntries = await this.prisma.timeEntry.findMany({
       where: { userId, date },
     });
 
-    // Build ghost candidates from template blocks
     const ghosts = templates.flatMap(tmpl =>
       tmpl.blocks.map(block => {
         const dow = String(dayOfWeek);
-
-        // Use adjusted times if exception memory has locked them in
         const adjusted = (block.adjustedTimes as any)[dow];
         const sh = adjusted?.startHour ?? block.startHour;
         const sm = adjusted?.startMinute ?? block.startMinute;
@@ -140,59 +178,48 @@ export class ScheduleTemplatesService {
         const editCount = (block.editCounts as any)[dow] ?? 0;
         const confidence = calcConfidence(editCount);
 
-        const startTime = new Date(date);
-        startTime.setUTCHours(sh, sm, 0, 0);
-        const endTime = new Date(date);
-        endTime.setUTCHours(eh, em, 0, 0);
+        const startTime = new Date(date); startTime.setUTCHours(sh, sm, 0, 0);
+        const endTime = new Date(date); endTime.setUTCHours(eh, em, 0, 0);
 
         return {
-          userId,
-          date,
-          templateBlockId: block.id,
-          title: block.title,
-          category: block.category,
-          startTime,
-          endTime,
-          confidence,
+          userId, date, templateBlockId: block.id, title: block.title,
+          category: block.category, startTime, endTime, confidence
         };
       })
     );
 
-    // Filter out any ghost that overlaps an already-logged real entry
     const nonOverlapping = ghosts.filter(g =>
       !realEntries.some(e =>
         new Date(e.startTime) < g.endTime && new Date(e.endTime) > g.startTime
       )
     );
-
     if (!nonOverlapping.length) return [];
 
-    await this.prisma.ghostEntry.createMany({
-      data: nonOverlapping,
-      skipDuplicates: true,
-    });
+    await this.prisma.ghostEntry.createMany({ data: nonOverlapping, skipDuplicates: true });
 
-    return this.prisma.ghostEntry.findMany({
-      where: { userId, date, status: 'PENDING' },
+    const created = await this.prisma.ghostEntry.findMany({
+      where: { userId, date, status: GhostStatus.PENDING },
       orderBy: { startTime: 'asc' },
     });
+
+    // Attach catchup flag — tells frontend to render slightly faded
+    return created.map(g => ({ ...g, catchup: daysDiff === 1 }));
   }
 
-  // ── Confirm ghost → real TimeEntry ───────────────────────────────────────
+  // ── Confirm ghost → real TimeEntry ────────────────────────────────────────
   async confirmGhost(userId: string, ghostId: string, dto: ConfirmGhostDto = {}) {
     const ghost = await this.prisma.ghostEntry.findUnique({ where: { id: ghostId } });
     if (!ghost) throw new NotFoundException('Ghost not found');
     if (ghost.userId !== userId) throw new ForbiddenException();
-    if (ghost.status === 'CONFIRMED' || ghost.status === 'EDITED') {
+    if (ghost.status === GhostStatus.CONFIRMED || ghost.status === GhostStatus.EDITED) {
       return { message: 'Already confirmed' };
     }
 
     const startTime = dto.startTime ? new Date(dto.startTime) : ghost.startTime;
     const endTime = dto.endTime ? new Date(dto.endTime) : ghost.endTime;
-    const timeChanged = dto.startTime || dto.endTime;
+    const timeChanged = !!(dto.startTime || dto.endTime);
     const wasEdited = !!(dto.title || dto.category || timeChanged);
 
-    // Create the real entry
     const entry = await this.prisma.timeEntry.create({
       data: {
         userId,
@@ -202,53 +229,177 @@ export class ScheduleTemplatesService {
         startTime,
         endTime,
         durationMinutes: Math.max(
-          1,
-          Math.round((endTime.getTime() - startTime.getTime()) / 60000)
+          1, Math.round((endTime.getTime() - startTime.getTime()) / 60000)
         ),
       },
     });
 
-    // Mark ghost as confirmed/edited
     await this.prisma.ghostEntry.update({
       where: { id: ghostId },
       data: {
-        status: wasEdited ? 'EDITED' : 'CONFIRMED',
-        confirmedEntryId: entry.id,
+        status: wasEdited ? GhostStatus.EDITED : GhostStatus.CONFIRMED,
+        confirmedEntryId: entry.id
       },
     });
 
-    // Record exception memory if time was changed
     if (timeChanged) {
-      await this.recordTimeAdjustment(
-        ghost.templateBlockId,
-        ghost.date,
-        startTime,
-        endTime
-      );
+      await this.recordTimeAdjustment(ghost.templateBlockId, ghost.date, startTime, endTime);
     }
 
     return entry;
   }
 
-  // ── Dismiss ghost ─────────────────────────────────────────────────────────
+  // ── Dismiss ghost (user intent) ───────────────────────────────────────────
   async dismissGhost(userId: string, ghostId: string) {
     const ghost = await this.prisma.ghostEntry.findUnique({ where: { id: ghostId } });
     if (!ghost || ghost.userId !== userId) throw new ForbiddenException();
     return this.prisma.ghostEntry.update({
       where: { id: ghostId },
-      data: { status: 'DISMISSED' },
+      data: { status: GhostStatus.DISMISSED },   // intentional user signal
     });
   }
 
+  // ── Catchup prompt ────────────────────────────────────────────────────────
+  // GET /routine/catchup?date=YYYY-MM-DD
+  //
+  // Returns whether the "fill yesterday" banner should show.
+  // Strict eligibility criteria (all must pass):
+  //   1. Date is within catchup window (yesterday only)
+  //   2. User has not already dismissed the banner for this date
+  //   3. Active templates for that day total ≥ MIN_TEMPLATE_MINUTES
+  //   4. User had SOME activity (confirmed/edited ghosts OR manual entries > 0)
+  //   5. Coverage (union of confirmed ghosts + manual entries) < COVERAGE_THRESHOLD
+  //
+  // Coverage uses interval union — no double-counting if entries overlap template
+
+  async getCatchupPrompt(userId: string, dateString: string) {
+    const date = new Date(dateString + 'T00:00:00.000Z');
+    const todayUTC = new Date();
+    todayUTC.setUTCHours(0, 0, 0, 0);
+
+    const daysDiff = Math.round(
+      (todayUTC.getTime() - date.getTime()) / (1000 * 60 * 60 * 24)
+    );
+
+    // Only evaluate for yesterday
+    if (daysDiff !== 1) {
+      return { shouldShow: false, reason: 'TOO_OLD' };
+    }
+
+    // Check persistent dismissal for this date
+    // Cast needed until `npx prisma generate` adds catchupDismissal to PrismaClient
+    const dismissed = await (this.prisma as any).catchupDismissal.findUnique({
+      where: { userId_forDate: { userId, forDate: date } },
+    });
+    if (dismissed) {
+      return { shouldShow: false, reason: 'DISMISSED_BY_USER' };
+    }
+
+    const dayOfWeek = date.getUTCDay();
+
+    // Get active templates for this day
+    const templates = await this.prisma.scheduleTemplate.findMany({
+      where: { userId, isActive: true, daysOfWeek: { has: dayOfWeek } },
+      include: { blocks: true },
+    });
+    if (!templates.length) {
+      return { shouldShow: false, reason: 'NO_TEMPLATE' };
+    }
+
+    // Calculate total template block minutes for this day
+    const templateIntervals = templates.flatMap(t =>
+      t.blocks.map(b => {
+        const dow = String(dayOfWeek);
+        const adj = (b.adjustedTimes as any)[dow];
+        const sh = adj?.startHour ?? b.startHour;
+        const sm = adj?.startMinute ?? b.startMinute;
+        const eh = adj?.endHour ?? b.endHour;
+        const em = adj?.endMinute ?? b.endMinute;
+        return { start: sh * 60 + sm, end: eh * 60 + em };
+      })
+    );
+
+    const expectedMinutes = unionMinutes(templateIntervals);
+
+    // Guard: template too small to be meaningful
+    if (expectedMinutes < MIN_TEMPLATE_MINUTES) {
+      return {
+        shouldShow: false, reason: 'TEMPLATE_TOO_SMALL',
+        expectedMinutes, threshold: MIN_TEMPLATE_MINUTES
+      };
+    }
+
+    // Get all confirmed/edited ghosts for this date
+    const confirmedGhosts = await this.prisma.ghostEntry.findMany({
+      where: { userId, date, status: { in: [GhostStatus.CONFIRMED, GhostStatus.EDITED] } },
+    });
+
+    // Get all manual time entries for this date
+    const manualEntries = await this.prisma.timeEntry.findMany({
+      where: { userId, date },
+    });
+
+    // Guard: user had NO activity at all → unusual day, don't prompt
+    const hasActivity = confirmedGhosts.length > 0 || manualEntries.length > 0;
+    if (!hasActivity) {
+      return {
+        shouldShow: false, reason: 'NO_ACTIVITY',
+        expectedMinutes
+      };
+    }
+
+    // Calculate coverage using interval union (avoids double-counting)
+    const coveredIntervals: { start: number; end: number }[] = [
+      // From confirmed ghosts
+      ...confirmedGhosts.map(g => ({
+        start: g.startTime.getUTCHours() * 60 + g.startTime.getUTCMinutes(),
+        end: g.endTime.getUTCHours() * 60 + g.endTime.getUTCMinutes(),
+      })),
+      // From manual entries (non-ghost real entries)
+      ...manualEntries.map(e => ({
+        start: new Date(e.startTime).getUTCHours() * 60 + new Date(e.startTime).getUTCMinutes(),
+        end: new Date(e.endTime).getUTCHours() * 60 + new Date(e.endTime).getUTCMinutes(),
+      })),
+    ];
+
+    const coveredMinutes = unionMinutes(coveredIntervals);
+    const coveragePct = coveredMinutes / expectedMinutes;
+
+    if (coveragePct >= COVERAGE_THRESHOLD) {
+      return {
+        shouldShow: false, reason: 'ENOUGH_COVERAGE',
+        coveredMinutes, expectedMinutes,
+        coveragePct: Math.round(coveragePct * 100)
+      };
+    }
+
+    // All checks passed → show the prompt
+    return {
+      shouldShow: true,
+      reason: 'SPARSE_COVERAGE',
+      coveredMinutes,
+      expectedMinutes,
+      coveragePct: Math.round(coveragePct * 100),
+    };
+  }
+
+  // ── Dismiss catchup banner (persistent) ──────────────────────────────────
+  // POST /routine/catchup/dismiss  body: { forDate: 'YYYY-MM-DD' }
+  // Creates a CatchupDismissal row so the banner never reappears for that date
+
+  async dismissCatchupBanner(userId: string, forDateString: string) {
+    const forDate = new Date(forDateString + 'T00:00:00.000Z');
+    await (this.prisma as any).catchupDismissal.upsert({
+      where: { userId_forDate: { userId, forDate } },
+      create: { userId, forDate },
+      update: { dismissedAt: new Date() },
+    });
+    return { success: true };
+  }
+
   // ── Exception memory ──────────────────────────────────────────────────────
-  // Tracks time adjustments per weekday on each template block.
-  // After 2+ adjustments on the same weekday, locks in adjusted time
-  // so future ghosts auto-use the corrected time.
   private async recordTimeAdjustment(
-    blockId: string,
-    date: Date,
-    newStart: Date,
-    newEnd: Date,
+    blockId: string, date: Date, newStart: Date, newEnd: Date,
   ) {
     const block = await this.prisma.templateBlock.findUnique({ where: { id: blockId } });
     if (!block) return;
@@ -259,8 +410,6 @@ export class ScheduleTemplatesService {
 
     editCounts[dow] = (editCounts[dow] ?? 0) + 1;
 
-    // After 2 edits on the same weekday — lock the adjusted time
-    // so future ghosts pre-populate with the corrected time
     if (editCounts[dow] >= 2) {
       adjustedTimes[dow] = {
         startHour: newStart.getUTCHours(),
@@ -277,9 +426,6 @@ export class ScheduleTemplatesService {
   }
 
   // ── Adaptation suggestions ────────────────────────────────────────────────
-  // Returns blocks where the user has adjusted times 3+ times on the same
-  // weekday — the system suggests updating the template to match reality.
-  // Framed as: "It looks like your [title] on [day] usually starts at [time] now."
   async getAdaptationSuggestions(userId: string) {
     const templates = await this.prisma.scheduleTemplate.findMany({
       where: { userId },
@@ -296,7 +442,7 @@ export class ScheduleTemplatesService {
 
         for (const [dow, times] of Object.entries(adjusted)) {
           const count = counts[dow] ?? 0;
-          if (count < 3) continue;  // Only surface after 3+ edits
+          if (count < 3) continue;
 
           const t = times as any;
           const pad = (n: number) => String(n).padStart(2, '0');
@@ -305,7 +451,6 @@ export class ScheduleTemplatesService {
           const suggestedStart = `${pad(t.startHour)}:${pad(t.startMinute)}`;
           const suggestedEnd = `${pad(t.endHour)}:${pad(t.endMinute)}`;
 
-          // Only suggest if actually different from template
           if (currentStart === suggestedStart && currentEnd === suggestedEnd) continue;
 
           suggestions.push({
@@ -315,12 +460,9 @@ export class ScheduleTemplatesService {
             blockTitle: block.title,
             dayOfWeek: Number(dow),
             dayName: DAYS[Number(dow)],
-            currentStart,
-            currentEnd,
-            suggestedStart,
-            suggestedEnd,
+            currentStart, currentEnd,
+            suggestedStart, suggestedEnd,
             editCount: count,
-            // Pre-built suggestion message — framed softly
             message: `It looks like your ${block.title} on ${DAYS[Number(dow)]} usually starts at ${suggestedStart} now.`,
           });
         }
@@ -330,19 +472,16 @@ export class ScheduleTemplatesService {
     return suggestions;
   }
 
-  // ── Apply adaptation suggestion ───────────────────────────────────────────
-  // User taps "Update template" on the suggestion → applies the adjusted time
+  // ── Apply / dismiss adaptation suggestion ─────────────────────────────────
   async applyAdaptation(userId: string, blockId: string, dayOfWeek: number) {
     const block = await this.prisma.templateBlock.findUnique({
-      where: { id: blockId },
-      include: { template: true },
+      where: { id: blockId }, include: { template: true },
     });
     if (!block || block.template.userId !== userId) throw new ForbiddenException();
 
     const adjusted = (block.adjustedTimes as any)[String(dayOfWeek)];
     if (!adjusted) throw new NotFoundException('No adjustment data for this day');
 
-    // Apply the adjusted time as the new template default
     await this.prisma.templateBlock.update({
       where: { id: blockId },
       data: {
@@ -350,21 +489,17 @@ export class ScheduleTemplatesService {
         startMinute: adjusted.startMinute,
         endHour: adjusted.endHour,
         endMinute: adjusted.endMinute,
-        // Clear exception memory for this weekday after applying
         editCounts: { ...(block.editCounts as any), [String(dayOfWeek)]: 0 },
         adjustedTimes: { ...(block.adjustedTimes as any), [String(dayOfWeek)]: undefined },
       },
     });
 
-    return { success: true, message: 'Template updated.' };
+    return { success: true };
   }
 
-  // ── Dismiss adaptation suggestion ─────────────────────────────────────────
-  // User taps "Keep as is" — reset edit count so it stops surfacing
   async dismissAdaptation(userId: string, blockId: string, dayOfWeek: number) {
     const block = await this.prisma.templateBlock.findUnique({
-      where: { id: blockId },
-      include: { template: true },
+      where: { id: blockId }, include: { template: true },
     });
     if (!block || block.template.userId !== userId) throw new ForbiddenException();
 
